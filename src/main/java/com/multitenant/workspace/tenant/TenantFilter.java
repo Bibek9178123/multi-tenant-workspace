@@ -32,11 +32,27 @@ public class TenantFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String path = request.getRequestURI();
 
+        // For /api/mail/, allow public access but set TenantContext if X-Tenant-ID is present
+        if (path.startsWith("/api/mail/")) {
+            String mailTenantId = request.getHeader("X-Tenant-ID");
+            if (!StringUtils.hasText(mailTenantId)) {
+                mailTenantId = request.getParameter("tenantId");
+            }
+            if (StringUtils.hasText(mailTenantId)) {
+                TenantContext.setCurrentTenant(mailTenantId.trim());
+            }
+            try {
+                filterChain.doFilter(request, response);
+            } finally {
+                TenantContext.clear();
+            }
+            return;
+        }
+
         // Skip tenant enforcement for public routes, auth routes, webhooks, and education endpoints
         if (path.startsWith("/api/auth/") ||
             path.startsWith("/api/webhooks/") ||
             path.startsWith("/api/education/") ||
-            path.startsWith("/api/mail/") ||
             path.equals("/api/workspaces") && request.getMethod().equalsIgnoreCase("GET") ||
             path.equals("/api/workspaces") && request.getMethod().equalsIgnoreCase("POST") ||
             !path.startsWith("/api/")) {

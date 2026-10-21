@@ -89,7 +89,7 @@ public class TaskService {
             userRepository.findById(request.assigneeId()).ifPresent(assignee -> {
                 String projectName = projectRepository.findByIdAndTenantId(request.projectId(), tenantId)
                         .map(Project::getName).orElse("Workspace Project");
-                emailService.sendTaskAssignmentEmail(assignee.getEmail(), assignee.getFullName(), finalTask.getTitle(), projectName, userName);
+                emailService.sendTaskAssignmentEmail(assignee.getEmail(), assignee.getFullName(), finalTask.getTitle(), projectName, userName, tenantId);
             });
         }
 
@@ -145,7 +145,7 @@ public class TaskService {
             userRepository.findById(request.assigneeId()).ifPresent(assignee -> {
                 String projectName = projectRepository.findByIdAndTenantId(finalTask.getProjectId(), tenantId)
                         .map(Project::getName).orElse("Workspace Project");
-                emailService.sendTaskAssignmentEmail(assignee.getEmail(), assignee.getFullName(), finalTask.getTitle(), projectName, userName);
+                emailService.sendTaskAssignmentEmail(assignee.getEmail(), assignee.getFullName(), finalTask.getTitle(), projectName, userName, tenantId);
             });
         }
 

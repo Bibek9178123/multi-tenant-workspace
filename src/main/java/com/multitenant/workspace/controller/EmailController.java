@@ -1,6 +1,7 @@
 package com.multitenant.workspace.controller;
 
 import com.multitenant.workspace.service.EmailService;
+import com.multitenant.workspace.tenant.TenantContext;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,17 +20,31 @@ public class EmailController {
     }
 
     @GetMapping("/status")
-    public ResponseEntity<Map<String, Object>> getMailStatus() {
-        return ResponseEntity.ok(emailService.getMailStatus());
+    public ResponseEntity<Map<String, Object>> getMailStatus(
+            @RequestHeader(value = "X-Tenant-ID", required = false) String headerTenantId) {
+        String tenantId = (headerTenantId != null && !headerTenantId.isBlank())
+                ? headerTenantId.trim()
+                : TenantContext.getCurrentTenant();
+        return ResponseEntity.ok(emailService.getMailStatus(tenantId));
     }
 
     @GetMapping("/outbox")
-    public ResponseEntity<List<EmailService.SentEmailRecord>> getRecentOutbox() {
-        return ResponseEntity.ok(emailService.getRecentOutbox());
+    public ResponseEntity<List<EmailService.SentEmailRecord>> getRecentOutbox(
+            @RequestHeader(value = "X-Tenant-ID", required = false) String headerTenantId) {
+        String tenantId = (headerTenantId != null && !headerTenantId.isBlank())
+                ? headerTenantId.trim()
+                : TenantContext.getCurrentTenant();
+        return ResponseEntity.ok(emailService.getRecentOutbox(tenantId));
     }
 
     @PostMapping("/test")
-    public ResponseEntity<Map<String, Object>> sendTestEmail(@RequestBody(required = false) Map<String, String> body) {
+    public ResponseEntity<Map<String, Object>> sendTestEmail(
+            @RequestHeader(value = "X-Tenant-ID", required = false) String headerTenantId,
+            @RequestBody(required = false) Map<String, String> body) {
+        String tenantId = (headerTenantId != null && !headerTenantId.isBlank())
+                ? headerTenantId.trim()
+                : TenantContext.getCurrentTenant();
+
         String toEmail = (body != null && body.containsKey("toEmail") && !body.get("toEmail").isBlank())
                 ? body.get("toEmail").trim()
                 : "bibekbibek9178@gmail.com";
@@ -37,11 +52,13 @@ public class EmailController {
                 ? body.get("password").trim()
                 : null;
 
-        EmailService.SentEmailRecord record = emailService.sendTestEmail(toEmail, overridePass);
+        EmailService.SentEmailRecord record = emailService.sendTestEmail(toEmail, overridePass, tenantId);
 
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("message", "Test email processed");
         resp.put("emailId", record.id());
+        resp.put("tenantId", record.tenantId());
+        resp.put("workspaceName", record.workspaceName());
         resp.put("toEmail", record.toEmail());
         resp.put("subject", record.subject());
         resp.put("deliveryStatus", record.deliveryStatus());
@@ -52,8 +69,12 @@ public class EmailController {
     }
 
     @DeleteMapping("/outbox")
-    public ResponseEntity<Map<String, String>> clearOutbox() {
-        emailService.clearOutbox();
-        return ResponseEntity.ok(Map.of("message", "Dev email outbox cleared successfully"));
+    public ResponseEntity<Map<String, String>> clearOutbox(
+            @RequestHeader(value = "X-Tenant-ID", required = false) String headerTenantId) {
+        String tenantId = (headerTenantId != null && !headerTenantId.isBlank())
+                ? headerTenantId.trim()
+                : TenantContext.getCurrentTenant();
+        emailService.clearOutbox(tenantId);
+        return ResponseEntity.ok(Map.of("message", "Dev email outbox cleared successfully for workspace"));
     }
 }

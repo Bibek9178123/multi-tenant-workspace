@@ -1,6 +1,7 @@
 package com.multitenant.workspace.service;
 
 import com.multitenant.workspace.config.MailConfig;
+import com.multitenant.workspace.tenant.TenantContext;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +52,8 @@ public class EmailService {
 
     public record SentEmailRecord(
             String id,
+            String tenantId,
+            String workspaceName,
             String toEmail,
             String subject,
             String bodyHtml,
@@ -91,6 +94,10 @@ public class EmailService {
     }
 
     public Map<String, Object> getMailStatus() {
+        return getMailStatus(TenantContext.getCurrentTenant());
+    }
+
+    public Map<String, Object> getMailStatus(String tenantId) {
         String u = getCleanUsername();
         String p = getCleanPassword();
         Map<String, Object> status = new LinkedHashMap<>();
@@ -121,28 +128,53 @@ public class EmailService {
         status.put("fromAddress", MailConfig.sanitize(mailFrom));
         status.put("mode", isSmtpConfigured() ? "LIVE_SMTP" : "DEV_SIMULATION_OUTBOX");
         status.put("lastSmtpError", lastSmtpError);
-        status.put("totalEmailsSent", outbox.size());
+        status.put("activeTenantId", (tenantId != null && !tenantId.isBlank()) ? tenantId : "all");
+        status.put("totalEmailsSent", getRecentOutbox(tenantId).size());
         return status;
     }
 
     public List<SentEmailRecord> getRecentOutbox() {
-        List<SentEmailRecord> list = new ArrayList<>(outbox);
+        return getRecentOutbox(TenantContext.getCurrentTenant());
+    }
+
+    public List<SentEmailRecord> getRecentOutbox(String tenantId) {
+        List<SentEmailRecord> list = new ArrayList<>();
+        boolean hasTenant = tenantId != null && !tenantId.isBlank();
+        for (SentEmailRecord rec : outbox) {
+            if (hasTenant) {
+                if (tenantId.equals(rec.tenantId())) {
+                    list.add(rec);
+                }
+            } else {
+                if (rec.tenantId() == null || rec.tenantId().isBlank()) {
+                    list.add(rec);
+                }
+            }
+        }
         Collections.reverse(list);
-        if (list.size() > 30) {
-            return list.subList(0, 30);
+        if (list.size() > 50) {
+            return list.subList(0, 50);
         }
         return list;
     }
 
     public void clearOutbox() {
-        outbox.clear();
+        clearOutbox(TenantContext.getCurrentTenant());
+    }
+
+    public void clearOutbox(String tenantId) {
+        if (tenantId != null && !tenantId.isBlank()) {
+            outbox.removeIf(rec -> tenantId.equals(rec.tenantId()));
+        } else {
+            outbox.removeIf(rec -> rec.tenantId() == null || rec.tenantId().isBlank());
+        }
     }
 
     /**
      * Welcome Email for New Registered Users.
      */
     @Async
-    public void sendWelcomeEmail(String toEmail, String userName, String companyName) {
+    public void sendWelcomeEmail(String toEmail, String userName, String companyName, String tenantId) {
         String subject = "Welcome to NexSpace | " + companyName;
         String html = """
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0f172a; border-radius: 12px; border: 1px solid #1e293b; overflow: hidden; color: #f8fafc;">
@@ -161,14 +193,19 @@ public class EmailService {
             </div>
             """.formatted(userName, companyName, appUrl);
 
-        dispatchEmail(toEmail, subject, html, "WELCOME_EMAIL");
+        dispatchEmailWithOverride(toEmail, subject, html, "WELCOME_EMAIL", null, tenantId, companyName);
+    }
+
+    @Async
+    public void sendWelcomeEmail(String toEmail, String userName, String companyName) {
+        sendWelcomeEmail(toEmail, userName, companyName, TenantContext.getCurrentTenant());
     }
 
     /**
      * Workspace Member Invitation Email.
      */
     @Async
-    public void sendInvitationEmail(String toEmail, String inviterName, String companyName, String role, String inviteLink) {
+    public void sendInvitationEmail(String toEmail, String inviterName, String companyName, String role, String inviteLink, String tenantId) {
         String subject = inviterName + " invited you to join " + companyName + " on NexSpace";
         String html = """
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0f172a; border-radius: 12px; border: 1px solid #1e293b; overflow: hidden; color: #f8fafc;">
@@ -187,14 +224,19 @@ public class EmailService {
             </div>
             """.formatted(companyName, inviterName, companyName, role, inviteLink != null ? inviteLink : appUrl, companyName);
 
-        dispatchEmail(toEmail, subject, html, "MEMBER_INVITATION");
+        dispatchEmailWithOverride(toEmail, subject, html, "MEMBER_INVITATION", null, tenantId, companyName);
+    }
+
+    @Async
+    public void sendInvitationEmail(String toEmail, String inviterName, String companyName, String role, String inviteLink) {
+        sendInvitationEmail(toEmail, inviterName, companyName, role, inviteLink, TenantContext.getCurrentTenant());
     }
 
     /**
      * Stripe Billing & Payment Notification Email.
      */
     @Async
-    public void sendBillingAlertEmail(String toEmail, String companyName, String subject, String messageContent) {
+    public void sendBillingAlertEmail(String toEmail, String companyName, String subject, String messageContent, String tenantId) {
         String html = """
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0f172a; border-radius: 12px; border: 1px solid #1e293b; overflow: hidden; color: #f8fafc;">
                 <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 32px 24px; text-align: center;">
@@ -210,14 +252,19 @@ public class EmailService {
             </div>
             """.formatted(companyName, messageContent, appUrl);
 
-        dispatchEmail(toEmail, subject, html, "BILLING_NOTIFICATION");
+        dispatchEmailWithOverride(toEmail, subject, html, "BILLING_NOTIFICATION", null, tenantId, companyName);
+    }
+
+    @Async
+    public void sendBillingAlertEmail(String toEmail, String companyName, String subject, String messageContent) {
+        sendBillingAlertEmail(toEmail, companyName, subject, messageContent, TenantContext.getCurrentTenant());
     }
 
     /**
      * Task Assignment Notification Email.
      */
     @Async
-    public void sendTaskAssignmentEmail(String toEmail, String assigneeName, String taskTitle, String projectName, String assignerName) {
+    public void sendTaskAssignmentEmail(String toEmail, String assigneeName, String taskTitle, String projectName, String assignerName, String tenantId) {
         String subject = "New Task Assigned: " + taskTitle;
         String html = """
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0f172a; border-radius: 12px; border: 1px solid #1e293b; overflow: hidden; color: #f8fafc;">
@@ -235,14 +282,23 @@ public class EmailService {
             </div>
             """.formatted(assigneeName != null ? assigneeName : "Teammate", assignerName, projectName, taskTitle, appUrl);
 
-        dispatchEmail(toEmail, subject, html, "TASK_ASSIGNMENT");
+        dispatchEmailWithOverride(toEmail, subject, html, "TASK_ASSIGNMENT", null, tenantId, projectName);
+    }
+
+    @Async
+    public void sendTaskAssignmentEmail(String toEmail, String assigneeName, String taskTitle, String projectName, String assignerName) {
+        sendTaskAssignmentEmail(toEmail, assigneeName, taskTitle, projectName, assignerName, TenantContext.getCurrentTenant());
     }
 
     public SentEmailRecord sendTestEmail(String toEmail) {
-        return sendTestEmail(toEmail, null);
+        return sendTestEmail(toEmail, null, TenantContext.getCurrentTenant());
     }
 
     public SentEmailRecord sendTestEmail(String toEmail, String overridePass) {
+        return sendTestEmail(toEmail, overridePass, TenantContext.getCurrentTenant());
+    }
+
+    public SentEmailRecord sendTestEmail(String toEmail, String overridePass, String tenantId) {
         String subject = "NexSpace Mail Service Test: Connection Successful";
         String html = """
             <div style="font-family: sans-serif; padding: 24px; background: #0f172a; color: white; border-radius: 8px;">
@@ -252,17 +308,24 @@ public class EmailService {
             </div>
             """.formatted(mailHost, (isSmtpConfigured() || overridePass != null) ? "Live SMTP" : "Virtual Dev Outbox");
 
-        return dispatchEmailWithOverride(toEmail, subject, html, "TEST_EMAIL", overridePass);
+        return dispatchEmailWithOverride(toEmail, subject, html, "TEST_EMAIL", overridePass, tenantId, "Test Workspace");
     }
 
     private SentEmailRecord dispatchEmail(String toEmail, String subject, String bodyHtml, String emailType) {
-        return dispatchEmailWithOverride(toEmail, subject, bodyHtml, emailType, null);
+        return dispatchEmailWithOverride(toEmail, subject, bodyHtml, emailType, null, TenantContext.getCurrentTenant(), "NexSpace");
     }
 
-    private SentEmailRecord dispatchEmailWithOverride(String toEmail, String subject, String bodyHtml, String emailType, String overridePass) {
+    private SentEmailRecord dispatchEmailWithOverride(String toEmail, String subject, String bodyHtml, String emailType, String overridePass, String tenantId, String workspaceName) {
         String emailId = "msg_" + UUID.randomUUID().toString().substring(0, 8);
         String deliveryStatus = "SIMULATED_OUTBOX";
         String errorMessage = null;
+
+        String resolvedTenantId = (tenantId != null && !tenantId.isBlank())
+                ? tenantId
+                : TenantContext.getCurrentTenant();
+        String resolvedWorkspaceName = (workspaceName != null && !workspaceName.isBlank())
+                ? workspaceName
+                : "NexSpace Workspace";
 
         JavaMailSender activeSender = null;
         if (overridePass != null && !overridePass.isBlank()) {
@@ -286,21 +349,23 @@ public class EmailService {
                 activeSender.send(message);
                 deliveryStatus = "SENT_SMTP";
                 lastSmtpError = null;
-                logger.info("[EmailService] Successfully sent live SMTP email [{}] to {}", emailType, toEmail);
+                logger.info("[EmailService] Successfully sent live SMTP email [{}] for workspace [{}] to {}", emailType, resolvedTenantId, toEmail);
             } catch (Exception ex) {
                 String causeMsg = ex.getCause() != null ? ex.getCause().getMessage() : "";
                 String fullMsg = ex.getMessage() + (causeMsg.isEmpty() ? "" : " | Cause: " + causeMsg);
                 errorMessage = fullMsg;
                 lastSmtpError = fullMsg;
-                logger.error("[EmailService] Live SMTP send failed to {}: {}", toEmail, fullMsg, ex);
+                logger.error("[EmailService] Live SMTP send failed for workspace [{}] to {}: {}", resolvedTenantId, toEmail, fullMsg, ex);
                 deliveryStatus = "FAILED_SMTP_FALLBACK_OUTBOX";
             }
         } else {
-            logger.info("[EmailService:DevOutbox] [{}] To: {} | Subject: '{}'", emailType, toEmail, subject);
+            logger.info("[EmailService:DevOutbox] [{}] Workspace: {} | To: {} | Subject: '{}'", emailType, resolvedTenantId, toEmail, subject);
         }
 
         SentEmailRecord record = new SentEmailRecord(
                 emailId,
+                resolvedTenantId,
+                resolvedWorkspaceName,
                 toEmail,
                 subject,
                 bodyHtml,

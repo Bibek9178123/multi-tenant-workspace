@@ -78,7 +78,7 @@ public class AuthService {
         );
 
         // Send welcome email asynchronously
-        emailService.sendWelcomeEmail(user.getEmail(), user.getFullName(), ws.name());
+        emailService.sendWelcomeEmail(user.getEmail(), user.getFullName(), ws.name(), ws.id());
 
         return new AuthDtos.AuthResponse(token, profile, List.of(ws), ws.id());
     }

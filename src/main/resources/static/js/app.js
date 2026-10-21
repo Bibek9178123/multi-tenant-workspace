@@ -1216,6 +1216,12 @@ async function renderOutbox() {
         if (countBadge) countBadge.textContent = `${count} messages`;
         if (navCount) navCount.textContent = count;
 
+        const wsNameEl = document.getElementById('outbox-workspace-name');
+        const activeWs = state.activeWorkspace;
+        if (wsNameEl) {
+            wsNameEl.textContent = (activeWs && activeWs.name) ? activeWs.name : 'Active Workspace';
+        }
+
         const tbody = document.getElementById('outbox-table-body');
         if (!tbody) return;
 
@@ -1224,7 +1230,7 @@ async function renderOutbox() {
                 <tr>
                     <td colspan="6" class="text-center empty-state-cell">
                         <i class="fa-regular fa-envelope" style="font-size: 1.5rem; opacity: 0.5; margin-bottom: 8px; display: block;"></i>
-                        No emails sent yet. Invite a team member, register a user, or send a test email above!
+                        No emails sent yet for this workspace. Invite a team member, register a user, or send a test email above!
                     </td>
                 </tr>
             `;
@@ -1238,12 +1244,18 @@ async function renderOutbox() {
                 : '<span class="status-badge review"><i class="fa-solid fa-inbox"></i> Captured (Outbox)</span>';
 
             const timeStr = formatTimestamp(msg.sentAt);
+            const wsBadge = msg.workspaceName
+                ? `<div style="font-size: 0.72rem; color: #818cf8; margin-top: 3px;"><i class="fa-solid fa-building" style="font-size: 0.68rem;"></i> ${escapeHtml(msg.workspaceName)}</div>`
+                : '';
 
             return `
                 <tr>
                     <td>${statusBadge}</td>
                     <td><strong>${escapeHtml(msg.toEmail)}</strong></td>
-                    <td><span class="badge-email-type ${escapeHtml(msg.emailType)}">${escapeHtml(msg.emailType)}</span></td>
+                    <td>
+                        <span class="badge-email-type ${escapeHtml(msg.emailType)}">${escapeHtml(msg.emailType)}</span>
+                        ${wsBadge}
+                    </td>
                     <td>${escapeHtml(msg.subject)}</td>
                     <td style="font-size: 0.8rem; color: var(--text-muted);">${timeStr}</td>
                     <td class="text-right">
@@ -1317,7 +1329,8 @@ function previewEmail(emailId) {
     }
 
     document.getElementById('modal-email-preview-subject').innerHTML = `<i class="fa-solid fa-envelope-open-text"></i> ${escapeHtml(msg.subject)}`;
-    document.getElementById('modal-email-preview-meta').textContent = `To: ${msg.toEmail} | Type: ${msg.emailType} | Status: ${msg.deliveryStatus} | Sent: ${formatTimestamp(msg.sentAt)}`;
+    const wsLabel = msg.workspaceName || (state.activeWorkspace?.name || 'Active Workspace');
+    document.getElementById('modal-email-preview-meta').textContent = `To: ${msg.toEmail} | Workspace: ${wsLabel} | Type: ${msg.emailType} | Status: ${msg.deliveryStatus} | Sent: ${formatTimestamp(msg.sentAt)}`;
 
     const previewContainer = document.getElementById('email-preview-content');
     previewContainer.innerHTML = msg.bodyHtml;

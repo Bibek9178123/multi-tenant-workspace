@@ -190,7 +190,8 @@ public class StripeBillingService {
                     userRepository.findById(ws.getOwnerId()).ifPresent(owner -> {
                         emailService.sendBillingAlertEmail(owner.getEmail(), ws.getName(),
                                 "Subscription Upgraded: " + plan + " Plan",
-                                "Great news! Your workspace subscription has been upgraded to the <strong>" + plan + "</strong> plan. Enjoy unlimited projects and team members.");
+                                "Great news! Your workspace subscription has been upgraded to the <strong>" + plan + "</strong> plan. Enjoy unlimited projects and team members.",
+                                ws.getId());
                     });
 
                     outcome.put("workspaceId", workspaceId);
@@ -236,7 +237,8 @@ public class StripeBillingService {
                             userRepository.findById(ws.getOwnerId()).ifPresent(owner -> {
                                 emailService.sendBillingAlertEmail(owner.getEmail(), ws.getName(),
                                         "Subscription Canceled",
-                                        "Your subscription for workspace <strong>" + ws.getName() + "</strong> has ended. The workspace has reverted to the FREE plan.");
+                                        "Your subscription for workspace <strong>" + ws.getName() + "</strong> has ended. The workspace has reverted to the FREE plan.",
+                                        ws.getId());
                             });
 
                             outcome.put("workspaceId", ws.getId());
@@ -258,7 +260,8 @@ public class StripeBillingService {
                             userRepository.findById(ws.getOwnerId()).ifPresent(owner -> {
                                 emailService.sendBillingAlertEmail(owner.getEmail(), ws.getName(),
                                         "Payment Receipt: $" + amountPaid,
-                                        "We received your payment of <strong>$" + amountPaid + "</strong> for workspace <strong>" + ws.getName() + "</strong>. Thank you for subscribing!");
+                                        "We received your payment of <strong>$" + amountPaid + "</strong> for workspace <strong>" + ws.getName() + "</strong>. Thank you for subscribing!",
+                                        ws.getId());
                             });
 
                             outcome.put("workspaceId", ws.getId());
@@ -281,7 +284,8 @@ public class StripeBillingService {
                             userRepository.findById(ws.getOwnerId()).ifPresent(owner -> {
                                 emailService.sendBillingAlertEmail(owner.getEmail(), ws.getName(),
                                         "Payment Failed - Action Required",
-                                        "Your recent subscription payment for workspace <strong>" + ws.getName() + "</strong> failed. Your account is marked PAST_DUE. Please update your payment details.");
+                                        "Your recent subscription payment for workspace <strong>" + ws.getName() + "</strong> failed. Your account is marked PAST_DUE. Please update your payment details.",
+                                        ws.getId());
                             });
 
                             outcome.put("workspaceId", ws.getId());

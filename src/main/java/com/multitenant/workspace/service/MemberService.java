@@ -79,7 +79,7 @@ public class MemberService {
         activityLogService.log("MEMBER_INVITED", "Invited " + request.email() + " as " + request.role(), actingUserId, actingUserName);
 
         String wsName = workspaceRepository.findById(workspaceId).map(Workspace::getName).orElse("Workspace " + workspaceId);
-        emailService.sendInvitationEmail(request.email(), actingUserName, wsName, request.role().name(), null);
+        emailService.sendInvitationEmail(request.email(), actingUserName, wsName, request.role().name(), null, workspaceId);
 
         return new MemberDtos.MemberResponse(
                 member.getId(),
