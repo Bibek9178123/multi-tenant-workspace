@@ -46,6 +46,6 @@ app:
       professional: price_pro_monthly_29
       enterprise: price_enterprise_monthly_99
   mail:
-    from: ${MAIL_FROM:bibekanandatest@gmail.com}
+    from: ${MAIL_FROM:bibekbibek9178@gmail.com}
     from-name: ${MAIL_FROM_NAME:NexSpace Workspace}
     app-url: ${APP_URL:http://localhost:8085}

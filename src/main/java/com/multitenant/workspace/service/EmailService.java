@@ -43,6 +43,7 @@ public class EmailService {
 
     // In-memory Outbox for development inspection, testing, and UI preview
     private final List<SentEmailRecord> outbox = new CopyOnWriteArrayList<>();
+    private volatile String lastSmtpError = null;
 
     public record SentEmailRecord(
             String id,
@@ -50,7 +51,8 @@ public class EmailService {
             String subject,
             String bodyHtml,
             String emailType,
-            String deliveryStatus, // SENT_SMTP or SIMULATED_OUTBOX
+            String deliveryStatus, // SENT_SMTP or SIMULATED_OUTBOX or FAILED_SMTP_FALLBACK_OUTBOX
+            String errorMessage,
             LocalDateTime sentAt
     ) {}
 
@@ -72,6 +74,7 @@ public class EmailService {
         status.put("hasPassword", mailPassword != null && !mailPassword.isBlank());
         status.put("fromAddress", mailFrom);
         status.put("mode", isSmtpConfigured() ? "LIVE_SMTP" : "DEV_SIMULATION_OUTBOX");
+        status.put("lastSmtpError", lastSmtpError);
         status.put("totalEmailsSent", outbox.size());
         return status;
     }
@@ -209,6 +212,8 @@ public class EmailService {
         String emailId = "msg_" + UUID.randomUUID().toString().substring(0, 8);
         String deliveryStatus = "SIMULATED_OUTBOX";
 
+        String errorMessage = null;
+
         if (isSmtpConfigured() && mailSender.isPresent()) {
             try {
                 MimeMessage message = mailSender.get().createMimeMessage();
@@ -220,9 +225,12 @@ public class EmailService {
 
                 mailSender.get().send(message);
                 deliveryStatus = "SENT_SMTP";
+                lastSmtpError = null;
                 logger.info("[EmailService] Successfully sent live SMTP email [{}] to {}", emailType, toEmail);
             } catch (Exception ex) {
-                logger.warn("[EmailService] Live SMTP send failed ({}), recording to Dev Outbox: {}", ex.getMessage(), ex.getClass().getSimpleName());
+                errorMessage = ex.getMessage();
+                lastSmtpError = ex.getMessage();
+                logger.error("[EmailService] Live SMTP send failed to {}: {}", toEmail, ex.getMessage(), ex);
                 deliveryStatus = "FAILED_SMTP_FALLBACK_OUTBOX";
             }
         } else {
@@ -236,6 +244,7 @@ public class EmailService {
                 bodyHtml,
                 emailType,
                 deliveryStatus,
+                errorMessage,
                 LocalDateTime.now()
         );
 
