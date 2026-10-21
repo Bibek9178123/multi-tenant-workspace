@@ -50,4 +50,4 @@ app:
   mail:
     from: ${MAIL_FROM:bibekbibek9178@gmail.com}
     from-name: ${MAIL_FROM_NAME:NexSpace Workspace}
-    app-url: ${APP_URL:http://localhost:8085}
+    app-url: ${APP_URL:https://multi-tenant-workspace-a0uq.onrender.com}

@@ -1,5 +1,6 @@
 package com.multitenant.workspace.service;
 
+import com.multitenant.workspace.config.MailConfig;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,19 +61,37 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
+    public String getCleanUsername() {
+        return MailConfig.sanitize(mailUsername);
+    }
+
+    public String getCleanPassword() {
+        return MailConfig.sanitize(mailPassword);
+    }
+
     public boolean isSmtpConfigured() {
-        return mailUsername != null && !mailUsername.isBlank() && !mailUsername.contains("your-email")
-                && mailPassword != null && !mailPassword.isBlank() && !mailPassword.contains("YOUR_");
+        String u = getCleanUsername();
+        String p = getCleanPassword();
+        return u != null && !u.isBlank() && !u.contains("your-email")
+                && p != null && !p.isBlank() && !p.contains("YOUR_");
     }
 
     public Map<String, Object> getMailStatus() {
+        String u = getCleanUsername();
+        String p = getCleanPassword();
         Map<String, Object> status = new LinkedHashMap<>();
         status.put("smtpConfigured", isSmtpConfigured());
-        status.put("host", mailHost);
+        status.put("host", MailConfig.sanitize(mailHost));
         status.put("port", mailPort);
-        status.put("username", (mailUsername != null && !mailUsername.isBlank()) ? mailUsername : "none");
-        status.put("hasPassword", mailPassword != null && !mailPassword.isBlank());
-        status.put("fromAddress", mailFrom);
+        status.put("username", (u != null && !u.isBlank()) ? u : "none");
+        status.put("hasPassword", p != null && !p.isBlank());
+        status.put("passwordLength", p != null ? p.length() : 0);
+        if (p != null && p.length() >= 8) {
+            String prefix = p.substring(0, Math.min(12, p.length()));
+            String suffix = p.substring(Math.max(0, p.length() - 4));
+            status.put("passwordMasked", prefix + "..." + suffix);
+        }
+        status.put("fromAddress", MailConfig.sanitize(mailFrom));
         status.put("mode", isSmtpConfigured() ? "LIVE_SMTP" : "DEV_SIMULATION_OUTBOX");
         status.put("lastSmtpError", lastSmtpError);
         status.put("totalEmailsSent", outbox.size());
@@ -218,8 +237,8 @@ public class EmailService {
             try {
                 MimeMessage message = mailSender.get().createMimeMessage();
                 MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-                helper.setFrom(mailFrom, mailFromName);
-                helper.setTo(toEmail);
+                helper.setFrom(MailConfig.sanitize(mailFrom), mailFromName);
+                helper.setTo(toEmail.trim());
                 helper.setSubject(subject);
                 helper.setText(bodyHtml, true);
 
