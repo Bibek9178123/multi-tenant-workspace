@@ -1342,7 +1342,7 @@ input:disabled {
 }
 
 /* -------------------------------------------------------------
-   Members Table View
+   Members Table View & Data Tables
    ------------------------------------------------------------- */
 .table-card {
     padding: 0;
@@ -1350,8 +1350,55 @@ input:disabled {
     -webkit-overflow-scrolling: touch;
 }
 
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary) var(--bg-surface);
+}
+
+.table-responsive::-webkit-scrollbar {
+    height: 7px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: var(--border-strong, #475569);
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: var(--primary, #6366f1);
+}
+
+.email-table-card {
+    padding: 24px 0 0 0;
+    overflow: hidden;
+}
+
+.email-table-card .card-header {
+    padding: 0 24px 18px 24px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.table-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.scroll-hint-badge {
+    display: none;
+}
+
 .data-table {
     width: 100%;
+    min-width: 760px;
     border-collapse: collapse;
     text-align: left;
 }
@@ -3194,14 +3241,41 @@ input:disabled {
         gap: 14px;
     }
 
-    .table-card {
+    .table-card,
+    .table-responsive {
+        width: 100%;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         border-radius: var(--radius-md);
+        display: block;
     }
 
     .data-table {
-        min-width: 580px;
+        min-width: 760px;
+    }
+
+    .email-table-card {
+        padding: 16px 0 0 0;
+    }
+
+    .email-table-card .card-header {
+        padding: 0 16px 14px 16px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .scroll-hint-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--primary);
+        background: rgba(99, 102, 241, 0.12);
+        padding: 4px 10px;
+        border-radius: 12px;
+        border: 1px solid rgba(99, 102, 241, 0.25);
     }
 
     .arch-details {
