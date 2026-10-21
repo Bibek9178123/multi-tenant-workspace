@@ -10,6 +10,6 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 COPY --from=build /app/target/multi-tenant-workspace-1.0.0.jar app.jar
-ENV PORT=8085
-EXPOSE 8085
+ENV PORT=10000
+EXPOSE 10000
 ENTRYPOINT ["java", "-jar", "app.jar"]
