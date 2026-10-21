@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>NexSpace | Multi-Tenant Workspace &amp; Team Collaboration</title>
+    <!-- Meta Descriptions & SEO -->
+    <meta name="description" content="NexSpace - Enterprise Multi-Tenant Workspace &amp; Team Collaboration SaaS platform with isolated data partitions, role-based access control, Stripe subscriptions, and real-time kanban.">
+    <meta name="keywords" content="multi-tenant, workspace, SaaS, team collaboration, kanban board, RBAC, stripe billing, brevo smtp">
+    <meta name="author" content="NexSpace Team">
+    <meta name="theme-color" content="#0b0f19">
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="alternate icon" type="image/png" href="favicon.svg">
+    <!-- Open Graph / Social Cards -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="NexSpace | Multi-Tenant Workspace &amp; Team Collaboration">
+    <meta property="og:description" content="Secure, isolated multi-tenant workspaces with role-based team management, real-time Kanban board, Stripe billing, and transactional email.">
+    <meta property="og:image" content="favicon.svg">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="NexSpace | Multi-Tenant Workspace">
+    <meta name="twitter:description" content="Secure, isolated multi-tenant workspaces with role-based team management and real-time collaboration.">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="theme-dark">
+
+    <!-- Auth Overlay (Shown when not authenticated) -->
+    <div id="auth-overlay" class="auth-overlay">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="brand-logo" onclick="switchTab('dashboard')" role="button" tabindex="0" title="NexSpace Overview" style="cursor: pointer;">
+                    <i class="fa-solid fa-cubes-stacked"></i>
+                    <span>NexSpace</span>
+                </div>
+                <h2>Welcome to Multi-Tenant Workspace</h2>
+                <p class="auth-subtitle">Secure, isolated workspaces with role-based team management</p>
+            </div>
+
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab-btn active" id="tab-login-btn" onclick="showAuthTab('login')">Sign In</button>
+                <button type="button" class="auth-tab-btn" id="tab-register-btn" onclick="showAuthTab('register')">Create Account</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="login-email"><i class="fa-regular fa-envelope"></i> Work Email</label>
+                    <input type="email" id="login-email" placeholder="name@company.com" required value="alex@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="login-password"><i class="fa-solid fa-lock"></i> Password</label>
+                    <input type="password" id="login-password" placeholder="••••••••" required value="password123">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="login-submit-btn">
+                    <span>Sign In</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                <div class="demo-hint">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span>First time? Sign in will auto-register demo accounts, or switch to "Create Account".</span>
+                </div>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form hidden" onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label for="reg-fullname"><i class="fa-regular fa-user"></i> Full Name</label>
+                    <input type="text" id="reg-fullname" placeholder="Alex Morgan" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-email"><i class="fa-regular fa-envelope"></i> Work Email</label>
+                    <input type="email" id="reg-email" placeholder="alex@company.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-password"><i class="fa-solid fa-lock"></i> Password (min 6 chars)</label>
+                    <input type="password" id="reg-password" placeholder="••••••••" minlength="6" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-workspace"><i class="fa-solid fa-building"></i> Workspace / Organization Name</label>
+                    <input type="text" id="reg-workspace" placeholder="Acme Studio">
+                    <small class="helper-text">This will create your isolated tenant workspace</small>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="register-submit-btn">
+                    <span>Create Workspace & Account</span>
+                    <i class="fa-solid fa-rocket"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application Shell -->
+    <div id="app-shell" class="app-layout">
+        
+        <!-- Mobile Sidebar Backdrop Overlay -->
+        <div id="sidebar-backdrop" class="sidebar-backdrop" onclick="closeMobileSidebar()" aria-hidden="true"></div>
+
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="app-sidebar">
+            <div class="sidebar-header">
+                <div class="brand-logo" onclick="switchTab('dashboard')" role="button" tabindex="0" title="Return to Overview" style="cursor: pointer;">
+                    <i class="fa-solid fa-cubes-stacked"></i>
+                    <span class="brand-text">NexSpace</span>
+                </div>
+                <button class="btn-close-sidebar" id="btn-close-sidebar" onclick="closeMobileSidebar()" aria-label="Close navigation menu" title="Close Menu">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Workspace Switcher Selector Widget -->
+            <div class="workspace-selector-widget">
+                <div class="workspace-dropdown" id="workspace-dropdown-trigger" onclick="toggleWorkspaceMenu(event)">
+                    <div class="current-ws-avatar" id="current-ws-avatar">A</div>
+                    <div class="current-ws-info">
+                        <span class="current-ws-name" id="current-ws-name">Loading...</span>
+                        <span class="current-ws-role-pill" id="current-ws-role-pill">OWNER</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-down ws-chevron"></i>
+                </div>
+
+                <!-- Dropdown Menu of available tenants -->
+                <div class="workspace-menu hidden" id="workspace-menu">
+                    <div class="menu-label">Your Workspaces</div>
+                    <div class="workspace-list" id="workspace-list-container">
+                        <!-- Dynamic items -->
+                    </div>
+                    <div class="menu-divider"></div>
+                    <button class="btn-menu-action" onclick="openNewWorkspaceModal()">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Create New Workspace</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Overview</span>
+                </button>
+                <button class="nav-item" data-tab="kanban" onclick="switchTab('kanban')">
+                    <i class="fa-solid fa-table-columns"></i>
+                    <span>Kanban Board</span>
+                    <span class="nav-badge" id="nav-task-count">0</span>
+                </button>
+                <button class="nav-item" data-tab="projects" onclick="switchTab('projects')">
+                    <i class="fa-solid fa-folder-tree"></i>
+                    <span>Projects</span>
+                    <span class="nav-badge" id="nav-project-count">0</span>
+                </button>
+                <button class="nav-item" data-tab="members" onclick="switchTab('members')">
+                    <i class="fa-solid fa-user-group"></i>
+                    <span>Team Members</span>
+                    <span class="nav-badge" id="nav-member-count">1</span>
+                </button>
+                <button class="nav-item" data-tab="billing" onclick="switchTab('billing')">
+                    <i class="fa-solid fa-credit-card"></i>
+                    <span>Stripe Billing</span>
+                    <span class="nav-badge plan-pill-badge" id="nav-plan-badge">FREE</span>
+                </button>
+                <button class="nav-item" data-tab="outbox" onclick="switchTab('outbox')">
+                    <i class="fa-solid fa-envelope-open-text"></i>
+                    <span>Email Outbox</span>
+                    <span class="nav-badge" id="nav-email-count">0</span>
+                </button>
+                <button class="nav-item lab-nav-item" data-tab="lab" onclick="switchTab('lab')">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                    <span>Architecture Lab</span>
+                    <span class="nav-badge lab-badge">LEARN</span>
+                </button>
+                <button class="nav-item" data-tab="settings" onclick="switchTab('settings')">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Settings</span>
+                </button>
+            </nav>
+
+            <!-- Tenant Info Box at bottom of sidebar -->
+            <div class="sidebar-footer">
+                <div class="tenant-isolation-tag">
+                    <div class="pulse-indicator"></div>
+                    <div class="tag-meta">
+                        <span class="label">ACTIVE TENANT ID</span>
+                        <code class="val" id="footer-tenant-id">none</code>
+                    </div>
+                </div>
+                <div class="user-profile-widget">
+                    <div class="user-avatar" id="current-user-avatar">JD</div>
+                    <div class="user-details">
+                        <div class="user-name" id="current-user-name">User Name</div>
+                        <div class="user-email" id="current-user-email">user@domain.com</div>
+                    </div>
+                    <button class="btn-logout" title="Sign Out" onclick="handleLogout()">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Navbar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="btn-icon-topbar btn-mobile-menu" id="btn-mobile-menu" onclick="toggleMobileSidebar()" aria-label="Toggle navigation menu" title="Open Menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div class="brand-logo mobile-logo" onclick="switchTab('dashboard')" role="button" tabindex="0" title="Return to Overview" style="cursor: pointer;">
+                        <i class="fa-solid fa-cubes-stacked"></i>
+                        <span>NexSpace</span>
+                    </div>
+                    <h1 class="page-title" id="page-title">Overview</h1>
+                    <div class="tenant-pill" title="Shared database tenant discriminator">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span class="tenant-label">Tenant:</span>
+                        <strong id="topbar-ws-slug">...</strong>
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="global-search" placeholder="Search tasks, projects..." oninput="handleSearch(this.value)">
+                    </div>
+
+                    <!-- Real-Time Activity Notifications Dropdown -->
+                    <div class="notifications-dropdown-container">
+                        <button class="btn-icon-topbar" id="btn-notifications" onclick="toggleNotificationsMenu(event)" title="Notifications">
+                            <i class="fa-regular fa-bell"></i>
+                            <span class="notification-badge" id="notification-badge">0</span>
+                        </button>
+                        <div class="notifications-menu hidden" id="notifications-menu">
+                            <div class="notifications-header">
+                                <div class="notifications-title">
+                                    <i class="fa-solid fa-bell"></i>
+                                    <span>Notifications</span>
+                                </div>
+                                <button class="btn-text-subtle" onclick="markAllNotificationsAsRead(event)">Mark all read</button>
+                            </div>
+                            <div class="notifications-list" id="notifications-list">
+                                <div class="notifications-empty">
+                                    <i class="fa-regular fa-bell-slash"></i>
+                                    <span>No new notifications</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" id="btn-quick-create" onclick="handleQuickCreate()">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>New Task</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- View 1: Overview / Dashboard -->
+            <section id="view-dashboard" class="content-view active">
+                <!-- Metrics Bar -->
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-title">Total Projects</span>
+                            <div class="metric-icon purple"><i class="fa-solid fa-folder"></i></div>
+                        </div>
+                        <div class="metric-value" id="metric-projects">0</div>
+                        <div class="metric-footer">Active workspaces scope</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-title">Total Tasks</span>
+                            <div class="metric-icon blue"><i class="fa-solid fa-list-check"></i></div>
+                        </div>
+                        <div class="metric-value" id="metric-tasks">0</div>
+                        <div class="metric-footer">Across all projects</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-title">Completed Tasks</span>
+                            <div class="metric-icon green"><i class="fa-solid fa-circle-check"></i></div>
+                        </div>
+                        <div class="metric-value" id="metric-completed">0</div>
+                        <div class="metric-footer" id="metric-completion-rate">0% completion rate</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-title">Team Members</span>
+                            <div class="metric-icon amber"><i class="fa-solid fa-users"></i></div>
+                        </div>
+                        <div class="metric-value" id="metric-members">1</div>
+                        <div class="metric-footer" id="metric-plan-name">FREE Plan</div>
+                    </div>
+                </div>
+
+                <!-- Dashboard 2-column layout -->
+                <div class="dashboard-columns">
+                    <!-- Left: Project Progress & Priority Breakdown -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-signal"></i> Task Status Distribution</h3>
+                        </div>
+                        <div class="status-bars">
+                            <div class="status-bar-row">
+                                <div class="bar-label"><span>To Do</span><span id="bar-cnt-todo">0</span></div>
+                                <div class="progress-track"><div class="progress-fill fill-todo" id="bar-fill-todo" style="width: 0%"></div></div>
+                            </div>
+                            <div class="status-bar-row">
+                                <div class="bar-label"><span>In Progress</span><span id="bar-cnt-progress">0</span></div>
+                                <div class="progress-track"><div class="progress-fill fill-progress" id="bar-fill-progress" style="width: 0%"></div></div>
+                            </div>
+                            <div class="status-bar-row">
+                                <div class="bar-label"><span>In Review</span><span id="bar-cnt-review">0</span></div>
+                                <div class="progress-track"><div class="progress-fill fill-review" id="bar-fill-review" style="width: 0%"></div></div>
+                            </div>
+                            <div class="status-bar-row">
+                                <div class="bar-label"><span>Done</span><span id="bar-cnt-done">0</span></div>
+                                <div class="progress-track"><div class="progress-fill fill-done" id="bar-fill-done" style="width: 0%"></div></div>
+                            </div>
+                        </div>
+
+                        <div class="priority-legend">
+                            <div class="legend-chip urgent"><span class="dot"></span> Urgent: <strong id="lg-urgent">0</strong></div>
+                            <div class="legend-chip high"><span class="dot"></span> High: <strong id="lg-high">0</strong></div>
+                            <div class="legend-chip medium"><span class="dot"></span> Medium: <strong id="lg-medium">0</strong></div>
+                            <div class="legend-chip low"><span class="dot"></span> Low: <strong id="lg-low">0</strong></div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Audit & Activity Log -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-clock-rotate-left"></i> Workspace Activity Log</h3>
+                            <span class="subtext">Isolated to this tenant</span>
+                        </div>
+                        <div class="activity-feed" id="activity-feed">
+                            <div class="empty-state">No activities recorded yet.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View 2: Kanban Board -->
+            <section id="view-kanban" class="content-view">
+                <div class="kanban-toolbar">
+                    <div class="toolbar-left">
+                        <div class="select-wrapper">
+                            <i class="fa-solid fa-layer-group"></i>
+                            <select id="kanban-group-by" onchange="changeKanbanGrouping(this.value)" title="Group By">
+                                <option value="status" selected>Group by Status</option>
+                                <option value="priority">Group by Priority</option>
+                                <option value="assignee">Group by Assignee</option>
+                                <option value="project">Group by Project</option>
+                            </select>
+                        </div>
+                        <div class="select-wrapper">
+                            <i class="fa-solid fa-filter"></i>
+                            <select id="kanban-project-filter" onchange="filterKanbanByProject(this.value)">
+                                <option value="">All Projects</option>
+                            </select>
+                        </div>
+                        <div class="kanban-search-box">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="kanban-search-input" placeholder="Search tasks, assignees..." oninput="handleKanbanSearch(this.value)">
+                        </div>
+                    </div>
+                    <div class="toolbar-right">
+                        <button class="btn btn-secondary" onclick="openNewProjectModal()">
+                            <i class="fa-solid fa-folder-plus"></i> New Project
+                        </button>
+                        <button class="btn btn-primary" onclick="openNewTaskModal()">
+                            <i class="fa-solid fa-plus"></i> Add Task
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Kanban Dynamic Board & Swimlanes Container -->
+                <div class="kanban-board" id="kanban-board-container">
+                    <!-- Dynamically rendered by renderKanban() based on grouping & filtering -->
+                </div>
+            </section>
+
+            <!-- View 3: Projects -->
+            <section id="view-projects" class="content-view">
+                <div class="section-action-header">
+                    <div>
+                        <h2>Workspace Projects</h2>
+                        <p class="subtext">Create and organize initiatives scoped to this workspace</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openNewProjectModal()">
+                        <i class="fa-solid fa-plus"></i> Create Project
+                    </button>
+                </div>
+
+                <div class="projects-grid" id="projects-grid">
+                    <!-- Dynamic project cards -->
+                </div>
+            </section>
+
+            <!-- View 4: Team Members -->
+            <section id="view-members" class="content-view">
+                <div class="section-action-header">
+                    <div>
+                        <h2>Team &amp; Access Control</h2>
+                        <p class="subtext">Manage members and Role-Based Access Control (RBAC) for this tenant</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openInviteModal()">
+                        <i class="fa-solid fa-user-plus"></i> Invite Member
+                    </button>
+                </div>
+
+                <div class="card table-card">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Member</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Joined Date</th>
+                                <th class="text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="members-table-body">
+                            <!-- Member rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- View 5: Settings -->
+            <section id="view-settings" class="content-view">
+                <div class="settings-container">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-gear"></i> Workspace Settings</h3>
+                        </div>
+                        <form id="workspace-settings-form" onsubmit="handleSaveWorkspaceSettings(event)">
+                            <div class="form-group">
+                                <label for="setting-ws-name">Workspace Name</label>
+                                <input type="text" id="setting-ws-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="setting-ws-slug">Workspace Slug (Tenant Identifier)</label>
+                                <input type="text" id="setting-ws-slug" disabled>
+                                <small class="helper-text">Permanent unique key for this multi-tenant database partition.</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="setting-ws-desc">Description</label>
+                                <textarea id="setting-ws-desc" rows="3"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="setting-ws-plan">Subscription Tier</label>
+                                <select id="setting-ws-plan">
+                                    <option value="FREE">FREE Tier (Community)</option>
+                                    <option value="PRO">PRO Tier (Unlimited projects & members)</option>
+                                    <option value="ENTERPRISE">ENTERPRISE Tier (Dedicated partition & SLA)</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </form>
+                    </div>
+
+                    <!-- Architecture Transparency Card -->
+                    <div class="card architecture-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-server"></i> Multi-Tenancy Architecture</h3>
+                        </div>
+                        <div class="arch-details">
+                            <div class="arch-item">
+                                <span class="arch-label">Strategy</span>
+                                <span class="arch-badge">Shared Database, Discriminator Column (`tenant_id`)</span>
+                            </div>
+                            <div class="arch-item">
+                                <span class="arch-label">Tenant Context</span>
+                                <span class="arch-badge">ThreadLocal with automatic filter cleanup</span>
+                            </div>
+                            <div class="arch-item">
+                                <span class="arch-label">Enforcement</span>
+                                <span class="arch-badge">X-Tenant-ID Header &amp; Spring Security RBAC verification</span>
+                            </div>
+                            <div class="arch-item">
+                                <span class="arch-label">Database</span>
+                                <span class="arch-badge">MySQL 8.0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Danger Zone -->
+                    <div class="card danger-card" id="danger-zone-card">
+                        <div class="card-header">
+                            <h3 class="text-danger"><i class="fa-solid fa-triangle-exclamation"></i> Danger Zone</h3>
+                        </div>
+                        <p>Permanently delete this workspace and all associated projects, tasks, and member access. This action cannot be undone.</p>
+                        <button class="btn btn-danger" onclick="handleDeleteWorkspace()">Delete This Workspace</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View 6: Stripe Billing & Subscriptions -->
+            <section id="view-billing" class="content-view">
+                <div class="billing-container">
+                    <div class="section-action-header">
+                        <div>
+                            <h2>Company Subscription &amp; Stripe Billing</h2>
+                            <p class="subtext">Manage plans, automated recurring subscriptions, and payment statuses for this company</p>
+                        </div>
+                        <div class="billing-status-banner" id="billing-status-banner">
+                            <span class="pulse-indicator"></span>
+                            <span>Status: <strong id="company-sub-status">ACTIVE</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- Current Subscription Summary Card -->
+                    <div class="card billing-overview-card">
+                        <div class="billing-overview-grid">
+                            <div class="overview-item">
+                                <span class="overview-label">Active Plan</span>
+                                <div class="overview-val-row">
+                                    <span class="plan-badge-large" id="bill-active-plan">FREE</span>
+                                    <span class="plan-price-tag" id="bill-plan-price">$0 / month</span>
+                                </div>
+                            </div>
+                            <div class="overview-item">
+                                <span class="overview-label">Stripe Customer ID</span>
+                                <code class="mono-badge" id="bill-stripe-customer">none</code>
+                            </div>
+                            <div class="overview-item">
+                                <span class="overview-label">Stripe Subscription ID</span>
+                                <code class="mono-badge" id="bill-stripe-sub">none</code>
+                            </div>
+                            <div class="overview-item">
+                                <span class="overview-label">Next Billing / Renewal</span>
+                                <span class="overview-date" id="bill-renewal-date">N/A</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pricing Tier Upgrade Cards -->
+                    <h3 class="billing-section-title"><i class="fa-solid fa-layer-group"></i> Available Subscription Plans</h3>
+                    <div class="pricing-cards-grid">
+                        <!-- Free Starter Plan -->
+                        <div class="pricing-card" id="plan-card-FREE">
+                            <div class="plan-card-header">
+                                <h4>Starter</h4>
+                                <div class="plan-card-price">$0<span>/mo</span></div>
+                                <p class="plan-desc">For early stage projects and open collaboration</p>
+                            </div>
+                            <ul class="plan-features">
+                                <li><i class="fa-solid fa-check"></i> 1 Company Workspace</li>
+                                <li><i class="fa-solid fa-check"></i> Up to 5 Team Members</li>
+                                <li><i class="fa-solid fa-check"></i> Standard Kanban Boards</li>
+                                <li><i class="fa-solid fa-check"></i> Basic Activity Audit</li>
+                            </ul>
+                            <button class="btn btn-secondary btn-block plan-action-btn" id="btn-plan-FREE" disabled>Current Plan</button>
+                        </div>
+
+                        <!-- Professional Plan -->
+                        <div class="pricing-card featured" id="plan-card-PRO">
+                            <div class="featured-ribbon">POPULAR</div>
+                            <div class="plan-card-header">
+                                <h4>Professional</h4>
+                                <div class="plan-card-price">$29<span>/mo</span></div>
+                                <p class="plan-desc">For growing companies requiring strict RBAC &amp; scale</p>
+                            </div>
+                            <ul class="plan-features">
+                                <li><i class="fa-solid fa-check"></i> Unlimited Projects &amp; Tasks</li>
+                                <li><i class="fa-solid fa-check"></i> Unlimited Team Members</li>
+                                <li><i class="fa-solid fa-check"></i> <strong>Fine-grained RBAC Roles</strong></li>
+                                <li><i class="fa-solid fa-check"></i> Automated Stripe Payment Webhooks</li>
+                                <li><i class="fa-solid fa-check"></i> Priority Email Support</li>
+                            </ul>
+                            <button class="btn btn-primary btn-block plan-action-btn" id="btn-plan-PRO" onclick="handleCheckout('PRO')">
+                                <i class="fa-brands fa-stripe"></i> Upgrade to Pro ($29/mo)
+                            </button>
+                        </div>
+
+                        <!-- Enterprise Plan -->
+                        <div class="pricing-card" id="plan-card-ENTERPRISE">
+                            <div class="plan-card-header">
+                                <h4>Enterprise</h4>
+                                <div class="plan-card-price">$99<span>/mo</span></div>
+                                <p class="plan-desc">For organizations with dedicated isolation requirements</p>
+                            </div>
+                            <ul class="plan-features">
+                                <li><i class="fa-solid fa-check"></i> Everything in Professional</li>
+                                <li><i class="fa-solid fa-check"></i> Dedicated Company Domain Mapping</li>
+                                <li><i class="fa-solid fa-check"></i> Custom Webhook Event Routing</li>
+                                <li><i class="fa-solid fa-check"></i> 99.99% Uptime SLA</li>
+                                <li><i class="fa-solid fa-check"></i> Dedicated Account Architect</li>
+                            </ul>
+                            <button class="btn btn-primary btn-block plan-action-btn" id="btn-plan-ENTERPRISE" onclick="handleCheckout('ENTERPRISE')">
+                                <i class="fa-brands fa-stripe"></i> Upgrade to Enterprise ($99/mo)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Invoices and Payment History Card -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-receipt"></i> Company Billing History &amp; Receipts</h3>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Invoice #</th>
+                                    <th>Billing Date</th>
+                                    <th>Amount</th>
+                                    <th>Payment Status</th>
+                                    <th>Receipt</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoices-table-body">
+                                <tr>
+                                    <td><code>INV-2026-001</code></td>
+                                    <td>Oct 18, 2026</td>
+                                    <td><strong>$29.00 USD</strong></td>
+                                    <td><span class="status-badge active"><i class="fa-solid fa-circle-check"></i> Paid via Stripe</span></td>
+                                    <td><button class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.75rem;" onclick="showToast('Simulated PDF receipt downloaded', 'info')"><i class="fa-solid fa-download"></i> PDF</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View 7: Architecture Learning Lab (Teaches Multi-Tenancy, RBAC & Webhooks) -->
+            <section id="view-lab" class="content-view">
+                <div class="lab-container">
+                    <div class="lab-hero-banner">
+                        <div class="lab-hero-content">
+                            <span class="lab-tag"><i class="fa-solid fa-graduation-cap"></i> Interactive Architecture Lab</span>
+                            <h2>Mastering Multi-Tenancy, RBAC &amp; Stripe Webhooks</h2>
+                            <p>Understand how enterprise SaaS products achieve 100% tenant data isolation, enforce granular security boundaries, and handle asynchronous financial webhooks.</p>
+                        </div>
+                    </div>
+
+                    <!-- Module 1: Multi-Tenancy Lifecycle Inspector -->
+                    <div class="card lab-module-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-network-wired"></i> 1. Multi-Tenant Request Lifecycle &amp; Zero-Leakage Data Isolation</h3>
+                            <span class="badge-accent">Core Isolation Principle</span>
+                        </div>
+                        <p class="module-intro">Every inbound HTTP request to the Spring Boot backend follows a strict 5-stage isolation pipeline to prevent cross-company data leakage:</p>
+
+                        <div class="lifecycle-steps-grid">
+                            <div class="lifecycle-step">
+                                <div class="step-num">1</div>
+                                <h4>HTTP Header Transport</h4>
+                                <p>Frontend sends <code>Authorization: Bearer &lt;JWT&gt;</code> and <code>X-Tenant-ID: &lt;CompanyID&gt;</code> with every request.</p>
+                            </div>
+                            <div class="lifecycle-step">
+                                <div class="step-num">2</div>
+                                <h4>Tenant Security Filter</h4>
+                                <p><code>TenantFilter</code> intercepts request, extracts tenant ID, and validates membership in the database before processing.</p>
+                            </div>
+                            <div class="lifecycle-step">
+                                <div class="step-num">3</div>
+                                <h4>ThreadLocal Context</h4>
+                                <p><code>TenantContext.setCurrentTenant(id)</code> binds the tenant to the executing thread for zero-argument context passing.</p>
+                            </div>
+                            <div class="lifecycle-step">
+                                <div class="step-num">4</div>
+                                <h4>SQL Discriminator Injection</h4>
+                                <p>JPA Repositories append <code>WHERE tenant_id = ?</code> to guarantee that Company A never sees Company B's data.</p>
+                            </div>
+                            <div class="lifecycle-step">
+                                <div class="step-num">5</div>
+                                <h4>Safe Finally Cleanup</h4>
+                                <p><code>finally { TenantContext.clear() }</code> removes ThreadLocal state to prevent thread reuse contamination in Tomcat.</p>
+                            </div>
+                        </div>
+
+                        <!-- Live Tenant Inspector Box -->
+                        <div class="live-inspector-box">
+                            <div class="inspector-header">
+                                <span><i class="fa-solid fa-terminal"></i> Live Request Context Inspector</span>
+                                <button class="btn btn-secondary btn-sm" onclick="refreshArchitectureSummary()"><i class="fa-solid fa-arrows-rotate"></i> Refresh State</button>
+                            </div>
+                            <pre class="inspector-code" id="arch-summary-output">Click "Refresh State" to inspect backend isolation telemetry...</pre>
+                        </div>
+                    </div>
+
+                    <!-- Module 2: RBAC Matrix & Role Boundary Tester -->
+                    <div class="card lab-module-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-shield-halved"></i> 2. Isolated Data Roles &amp; RBAC Permission Matrix</h3>
+                            <span class="badge-accent">Role-Based Access Control</span>
+                        </div>
+                        <p class="module-intro">Different team members have strict role boundaries. For example, a <code>BILLING_ADMIN</code> can upgrade Stripe subscriptions and view invoices, but is completely blocked from deleting engineering projects!</p>
+
+                        <!-- RBAC Matrix Table -->
+                        <div class="table-responsive">
+                            <table class="data-table rbac-matrix-table" id="rbac-matrix-table">
+                                <thead>
+                                    <tr>
+                                        <th>Permission / Capability</th>
+                                        <th class="text-center">OWNER</th>
+                                        <th class="text-center">ADMIN</th>
+                                        <th class="text-center">BILLING_ADMIN</th>
+                                        <th class="text-center">MEMBER</th>
+                                        <th class="text-center">VIEWER</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rbac-matrix-tbody">
+                                    <!-- Populated dynamically via API -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Interactive Role Tester Sandbox -->
+                        <div class="rbac-tester-card">
+                            <h4><i class="fa-solid fa-flask"></i> Interactive RBAC Permission Sandbox</h4>
+                            <p class="subtext">Simulate a user action under different roles to test access enforcement:</p>
+                            <div class="tester-controls-row">
+                                <div class="form-group col-half">
+                                    <label>Select Simulated Role:</label>
+                                    <select id="test-role-select">
+                                        <option value="BILLING_ADMIN">BILLING_ADMIN (Financial Operator)</option>
+                                        <option value="MEMBER">MEMBER (Standard Teammate)</option>
+                                        <option value="VIEWER">VIEWER (Auditor / Read-only)</option>
+                                        <option value="ADMIN">ADMIN (Workspace Administrator)</option>
+                                        <option value="OWNER">OWNER (Full Privilege)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group col-half">
+                                    <label>Select Target Action:</label>
+                                    <select id="test-perm-select">
+                                        <option value="DELETE_PROJECTS">DELETE_PROJECTS (Destroy engineering data)</option>
+                                        <option value="MANAGE_BILLING">MANAGE_BILLING (Upgrade Stripe subscription)</option>
+                                        <option value="INVITE_MEMBERS">INVITE_MEMBERS (Add new team collaborators)</option>
+                                        <option value="MANAGE_TASKS">MANAGE_TASKS (Create and move tasks on Kanban)</option>
+                                        <option value="TRIGGER_WEBHOOKS">TRIGGER_WEBHOOKS (Dispatch payment events)</option>
+                                    </select>
+                                </div>
+                                <button class="btn btn-primary" onclick="handleTestRbacPermission()" style="align-self: flex-end; height: 38px;">
+                                    <i class="fa-solid fa-play"></i> Test Access Boundary
+                                </button>
+                            </div>
+                            <div class="test-result-box hidden" id="test-result-box">
+                                <div class="test-result-badge" id="test-result-badge">ALLOWED</div>
+                                <div class="test-result-text" id="test-result-text">Explanation...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Module 3: Stripe Payment Webhooks Simulator -->
+                    <div class="card lab-module-card">
+                        <div class="card-header">
+                            <h3><i class="fa-brands fa-stripe"></i> 3. Stripe Payment Webhook Simulator &amp; Event Dispatcher</h3>
+                            <span class="badge-accent">Asynchronous Financial Events</span>
+                        </div>
+                        <p class="module-intro">When users pay via Stripe, Stripe's servers post asynchronous Webhook HTTP requests to <code>POST /api/webhooks/stripe</code>. Test real webhook scenarios in 1 click without needing <code>ngrok</code> or the Stripe CLI!</p>
+
+                        <div class="webhook-endpoint-info">
+                            <span class="label">Public Webhook Listener Endpoint:</span>
+                            <code>http://localhost:8085/api/webhooks/stripe</code>
+                            <span class="subtext">(Includes signature verification via <code>Stripe-Signature</code> header)</span>
+                        </div>
+
+                        <!-- Webhook Action Buttons -->
+                        <div class="webhook-actions-grid">
+                            <button class="webhook-btn success" onclick="handleSimulateWebhook('checkout.session.completed', 'PRO')">
+                                <div class="btn-top">
+                                    <i class="fa-solid fa-check-circle"></i>
+                                    <strong>checkout.session.completed</strong>
+                                </div>
+                                <span>Simulate user paying $29. Upgrades active company to <strong>PRO Tier</strong>.</span>
+                            </button>
+
+                            <button class="webhook-btn success" onclick="handleSimulateWebhook('checkout.session.completed', 'ENTERPRISE')">
+                                <div class="btn-top">
+                                    <i class="fa-solid fa-crown"></i>
+                                    <strong>checkout.session.completed (Enterprise)</strong>
+                                </div>
+                                <span>Simulate user paying $99. Upgrades company to <strong>ENTERPRISE Tier</strong>.</span>
+                            </button>
+
+                            <button class="webhook-btn warning" onclick="handleSimulateWebhook('invoice.payment_failed')">
+                                <div class="btn-top">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                    <strong>invoice.payment_failed</strong>
+                                </div>
+                                <span>Simulate card declined. Company status automatically shifts to <strong>PAST_DUE</strong>.</span>
+                            </button>
+
+                            <button class="webhook-btn info" onclick="handleSimulateWebhook('invoice.payment_succeeded')">
+                                <div class="btn-top">
+                                    <i class="fa-solid fa-receipt"></i>
+                                    <strong>invoice.payment_succeeded</strong>
+                                </div>
+                                <span>Simulate monthly recurring payment. Appends payment receipt to audit feed.</span>
+                            </button>
+
+                            <button class="webhook-btn danger" onclick="handleSimulateWebhook('customer.subscription.deleted')">
+                                <div class="btn-top">
+                                    <i class="fa-solid fa-ban"></i>
+                                    <strong>customer.subscription.deleted</strong>
+                                </div>
+                                <span>Simulate plan cancellation. Instantly reverts company to <strong>FREE Tier</strong>.</span>
+                            </button>
+                        </div>
+
+                        <!-- Webhook Console Payload Viewer -->
+                        <div class="webhook-console-card">
+                            <div class="console-header">
+                                <span><i class="fa-solid fa-code"></i> Inbound Webhook Payload &amp; Processing Outcome</span>
+                                <span class="console-status" id="webhook-console-status">Ready for simulation</span>
+                            </div>
+                            <pre class="console-output" id="webhook-console-output">// Click any webhook trigger button above to fire and inspect an inbound Stripe event...</pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View 8: Email Delivery Outbox & Free SMTP Tester -->
+            <section id="view-outbox" class="content-view">
+                <div class="outbox-container">
+                    <!-- Hero / Status Banner -->
+                    <div class="email-status-banner">
+                        <div class="email-status-info">
+                            <div class="email-mode-row">
+                                <span class="badge-status-mode" id="email-mode-badge"><i class="fa-solid fa-satellite-dish"></i> DEV OUTBOX MODE</span>
+                                <span class="email-meta-pill" id="email-host-pill"><i class="fa-solid fa-server"></i> Host: smtp.gmail.com:587</span>
+                                <span class="email-meta-pill" id="email-from-pill"><i class="fa-solid fa-at"></i> From: noreply@nexspace.com</span>
+                            </div>
+                            <h2>Email Service &amp; Live Outbox Monitor</h2>
+                            <p>Verify HTML emails generated for welcome messages, workspace invitations, billing alerts, and task assignments in real-time.</p>
+                        </div>
+                        <div class="email-status-actions">
+                            <button class="btn btn-secondary" onclick="refreshOutbox()"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button>
+                            <button class="btn btn-danger-outline" onclick="handleClearOutbox()"><i class="fa-solid fa-trash-can"></i> Clear Outbox</button>
+                        </div>
+                    </div>
+
+                    <!-- Free SMTP Provider Configuration Guide -->
+                    <div class="card email-guide-card">
+                        <div class="card-header" style="cursor: pointer;" onclick="toggleEmailGuide()">
+                            <h3><i class="fa-solid fa-paper-plane"></i> How to Connect Free Email Services (Gmail, Brevo, Resend)</h3>
+                            <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-guide"><i class="fa-solid fa-chevron-down"></i> Guide</button>
+                        </div>
+                        <div id="email-guide-content" class="email-guide-body">
+                            <div class="guide-grid">
+                                <div class="guide-box">
+                                    <div class="guide-box-header">
+                                        <i class="fa-brands fa-google text-danger"></i>
+                                        <h4>1. Gmail SMTP (100% Free)</h4>
+                                    </div>
+                                    <p>Send up to 500 emails/day using your standard Google account:</p>
+                                    <ol class="guide-steps">
+                                        <li>Enable <strong>2-Step Verification</strong> on your Google Account.</li>
+                                        <li>Visit <code>myaccount.google.com/apppasswords</code>.</li>
+                                        <li>Generate an App Password (name it "NexSpace"). You'll receive a 16-character key.</li>
+                                        <li>In <code>application.yml</code> or environment variables:
+                                            <pre>SPRING_MAIL_HOST=smtp.gmail.com
+SPRING_MAIL_PORT=587
+SPRING_MAIL_USERNAME=your.email@gmail.com
+SPRING_MAIL_PASSWORD=your16charpassword
+APP_MAIL_FROM=your.email@gmail.com</pre>
+                                        </li>
+                                    </ol>
+                                </div>
+
+                                <div class="guide-box">
+                                    <div class="guide-box-header">
+                                        <i class="fa-solid fa-dove text-info"></i>
+                                        <h4>2. Brevo / Sendinblue (Free 300/Day)</h4>
+                                    </div>
+                                    <p>Zero credit card needed, free tier sends 300 emails per day to any domain:</p>
+                                    <ol class="guide-steps">
+                                        <li>Sign up free at <code>brevo.com</code>.</li>
+                                        <li>Go to <strong>Transactional &gt; SMTP &amp; API</strong>.</li>
+                                        <li>Copy your SMTP Master Key.</li>
+                                        <li>Configure:
+                                            <pre>SPRING_MAIL_HOST=smtp-relay.brevo.com
+SPRING_MAIL_PORT=587
+SPRING_MAIL_USERNAME=your-brevo-login-email
+SPRING_MAIL_PASSWORD=your-brevo-smtp-key
+APP_MAIL_FROM=verified-sender@domain.com</pre>
+                                        </li>
+                                    </ol>
+                                </div>
+
+                                <div class="guide-box">
+                                    <div class="guide-box-header">
+                                        <i class="fa-solid fa-laptop-code text-primary"></i>
+                                        <h4>3. Virtual Dev Outbox (Built-in)</h4>
+                                    </div>
+                                    <p>Already fully operational without credentials!</p>
+                                    <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.5;">When SMTP credentials are left blank or invalid, NexSpace automatically routes every outgoing email to this live in-memory Outbox. You can inspect delivered headers, view complete HTML templates, and verify workflow triggers instantly.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Send Test Email Card -->
+                    <div class="card email-test-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-vial"></i> Send Test Verification Email</h3>
+                        </div>
+                        <form id="form-send-test-email" class="email-test-form" onsubmit="handleSendTestEmail(event)">
+                            <div class="form-row">
+                                <div class="form-group flex-1">
+                                    <label for="test-email-input">Recipient Email Address</label>
+                                    <input type="email" id="test-email-input" placeholder="Enter recipient email (e.g. dev@company.com)" required>
+                                </div>
+                                <div class="form-group form-group-btn">
+                                    <button type="submit" class="btn btn-primary" id="btn-send-test-mail">
+                                        <i class="fa-solid fa-paper-plane"></i>
+                                        <span>Dispatch Test Email</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Sent Emails Log & Inspector Table -->
+                    <div class="card email-table-card">
+                        <div class="card-header">
+                            <div>
+                                <h3><i class="fa-solid fa-inbox"></i> Sent Messages History</h3>
+                                <p class="card-subtitle">All transactional emails triggered by invitations, registration, Stripe webhooks, or tasks</p>
+                            </div>
+                            <span class="badge-count" id="outbox-count-badge">0 messages</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Status</th>
+                                        <th>Recipient</th>
+                                        <th>Type</th>
+                                        <th>Subject</th>
+                                        <th>Time</th>
+                                        <th class="text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="outbox-table-body">
+                                    <tr>
+                                        <td colspan="6" class="text-center empty-state-cell">
+                                            <i class="fa-regular fa-envelope" style="font-size: 1.5rem; opacity: 0.5; margin-bottom: 8px; display: block;"></i>
+                                            No emails sent yet. Invite a team member, register a user, or send a test email above!
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Application Footer with Working Navigation Links -->
+            <footer class="app-footer">
+                <div class="footer-left">
+                    <div class="footer-brand" onclick="switchTab('dashboard')" role="button" tabindex="0" title="Return to Overview" style="cursor: pointer;">
+                        <i class="fa-solid fa-cubes-stacked"></i>
+                        <span>NexSpace</span>
+                    </div>
+                    <p class="footer-copy">&copy; 2026 NexSpace SaaS. Multi-tenant database discriminator isolation.</p>
+                </div>
+                <div class="footer-links">
+                    <a href="javascript:void(0)" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i> Overview</a>
+                    <a href="javascript:void(0)" onclick="switchTab('kanban')"><i class="fa-solid fa-table-columns"></i> Kanban</a>
+                    <a href="javascript:void(0)" onclick="switchTab('projects')"><i class="fa-solid fa-folder-tree"></i> Projects</a>
+                    <a href="javascript:void(0)" onclick="switchTab('members')"><i class="fa-solid fa-user-group"></i> Team</a>
+                    <a href="javascript:void(0)" onclick="switchTab('billing')"><i class="fa-brands fa-stripe"></i> Billing</a>
+                    <a href="javascript:void(0)" onclick="switchTab('outbox')"><i class="fa-solid fa-envelope-open-text"></i> Outbox</a>
+                    <a href="javascript:void(0)" onclick="switchTab('lab')"><i class="fa-solid fa-graduation-cap"></i> Architecture Lab</a>
+                    <a href="javascript:void(0)" onclick="switchTab('settings')"><i class="fa-solid fa-sliders"></i> Settings</a>
+                    <a href="javascript:void(0)" onclick="openModal('modal-help-guide')"><i class="fa-solid fa-circle-question"></i> Help &amp; Shortcuts</a>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <!-- MODALS -->
+
+    <!-- Modal: Create New Workspace -->
+    <div id="modal-new-workspace" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-building-circle-check"></i> Create New Workspace</h3>
+                <button class="btn-close-modal" onclick="closeModal('modal-new-workspace')">&times;</button>
+            </div>
+            <form onsubmit="handleCreateWorkspace(event)">
+                <div class="form-group">
+                    <label for="new-ws-name">Workspace Name *</label>
+                    <input type="text" id="new-ws-name" placeholder="Engineering Team" required oninput="autoGenerateSlug(this.value)">
+                </div>
+                <div class="form-group">
+                    <label for="new-ws-slug">Workspace Slug (URL-friendly)</label>
+                    <input type="text" id="new-ws-slug" placeholder="engineering-team" pattern="^[a-z0-9-]+$">
+                    <small class="helper-text">Lowercase alphanumeric characters and hyphens only.</small>
+                </div>
+                <div class="form-group">
+                    <label for="new-ws-desc">Description</label>
+                    <textarea id="new-ws-desc" rows="2" placeholder="What is this workspace for?"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-new-workspace')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Workspace</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Create Project -->
+    <div id="modal-new-project" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-folder-plus"></i> New Project</h3>
+                <button class="btn-close-modal" onclick="closeModal('modal-new-project')">&times;</button>
+            </div>
+            <form onsubmit="handleCreateProject(event)">
+                <div class="form-group">
+                    <label for="new-proj-name">Project Name *</label>
+                    <input type="text" id="new-proj-name" placeholder="Website Redesign" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-proj-desc">Description</label>
+                    <textarea id="new-proj-desc" rows="2" placeholder="Brief project goals..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Accent Color</label>
+                    <div class="color-picker-row">
+                        <label class="color-radio"><input type="radio" name="proj-color" value="#6366f1" checked><span style="background: #6366f1;"></span></label>
+                        <label class="color-radio"><input type="radio" name="proj-color" value="#3b82f6"><span style="background: #3b82f6;"></span></label>
+                        <label class="color-radio"><input type="radio" name="proj-color" value="#10b981"><span style="background: #10b981;"></span></label>
+                        <label class="color-radio"><input type="radio" name="proj-color" value="#f59e0b"><span style="background: #f59e0b;"></span></label>
+                        <label class="color-radio"><input type="radio" name="proj-color" value="#ef4444"><span style="background: #ef4444;"></span></label>
+                        <label class="color-radio"><input type="radio" name="proj-color" value="#ec4899"><span style="background: #ec4899;"></span></label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-new-project')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Project</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Create / Edit Task -->
+    <div id="modal-task" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-task-title"><i class="fa-solid fa-list-check"></i> Add New Task</h3>
+                <button class="btn-close-modal" onclick="closeModal('modal-task')">&times;</button>
+            </div>
+            <form id="task-form" onsubmit="handleSaveTask(event)">
+                <input type="hidden" id="task-edit-id">
+                <div class="form-group">
+                    <label for="task-title">Title *</label>
+                    <input type="text" id="task-title" placeholder="e.g. Implement tenant database indexes" required>
+                </div>
+                <div class="form-group">
+                    <label for="task-project">Project *</label>
+                    <select id="task-project" required>
+                        <!-- Dynamic projects -->
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-half">
+                        <label for="task-status">Status</label>
+                        <select id="task-status">
+                            <option value="TODO">To Do</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="IN_REVIEW">In Review</option>
+                            <option value="DONE">Done</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-half">
+                        <label for="task-priority">Priority</label>
+                        <select id="task-priority">
+                            <option value="LOW">Low</option>
+                            <option value="MEDIUM" selected>Medium</option>
+                            <option value="HIGH">High</option>
+                            <option value="URGENT">Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-half">
+                        <label for="task-assignee">Assignee</label>
+                        <select id="task-assignee">
+                            <option value="">Unassigned</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-half">
+                        <label for="task-due-date">Due Date</label>
+                        <input type="date" id="task-due-date">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="task-desc">Description</label>
+                    <textarea id="task-desc" rows="3" placeholder="Task details, requirements, acceptance criteria..."></textarea>
+                </div>
+                <!-- File Attachments Dropzone -->
+                <div class="form-group">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                        <label style="margin-bottom:0;"><i class="fa-solid fa-paperclip"></i> Task Attachments</label>
+                        <span class="subtext" id="task-att-count-text">0 attached</span>
+                    </div>
+                    <div class="file-dropzone" id="task-dropzone" onclick="document.getElementById('task-file-input').click()">
+                        <input type="file" id="task-file-input" multiple class="hidden" onchange="handleTaskFileSelect(event)">
+                        <i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
+                        <div class="dropzone-text">
+                            <strong>Choose files</strong> or drag & drop here
+                        </div>
+                        <span class="dropzone-hint">Images, PDF, documents, logs up to 10MB</span>
+                    </div>
+                    <div class="attachments-list" id="task-attachments-list"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-task')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-task">Save Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: View Task Attachments & Previews -->
+    <div id="modal-attachments-preview" class="modal-overlay hidden">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3 id="modal-att-title"><i class="fa-solid fa-paperclip"></i> Task Attachments</h3>
+                <button class="btn-close-modal" onclick="closeModal('modal-attachments-preview')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <div class="attachments-preview-grid" id="modal-att-content"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-attachments-preview')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Invite Member -->
+    <div id="modal-invite" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-envelope-open-text"></i> Invite Collaborator</h3>
+                <button class="btn-close-modal" onclick="closeModal('modal-invite')">&times;</button>
+            </div>
+            <form onsubmit="handleInviteMember(event)">
+                <div class="form-group">
+                    <label for="invite-email">Teammate Email *</label>
+                    <input type="email" id="invite-email" placeholder="colleague@company.com" required>
+                    <small class="helper-text">They will receive access to this workspace partition immediately.</small>
+                </div>
+                <div class="form-group">
+                    <label for="invite-role">Workspace Role *</label>
+                    <select id="invite-role" required>
+                        <option value="MEMBER">Member (Can create, view, and update projects &amp; tasks)</option>
+                        <option value="ADMIN">Admin (Can manage settings and invite teammates)</option>
+                        <option value="BILLING_ADMIN">Billing Admin (Can manage Stripe subscription &amp; invoices, isolated from projects)</option>
+                        <option value="VIEWER">Viewer (Read-only access)</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-invite')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Send Invitation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: View Sent Email HTML Preview -->
+    <div id="modal-email-preview" class="modal-overlay hidden">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <div>
+                    <h3 id="modal-email-preview-subject"><i class="fa-solid fa-envelope-open-text"></i> Email Preview</h3>
+                    <div class="modal-email-meta" id="modal-email-preview-meta">To: ... | Sent: ...</div>
+                </div>
+                <button class="btn-close-modal" onclick="closeModal('modal-email-preview')">&times;</button>
+            </div>
+            <div class="modal-email-body">
+                <div class="email-preview-frame-container" id="email-preview-content">
+                    <!-- Rendered HTML Email Content -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-email-preview')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Help, Shortcuts & Architecture Reference -->
+    <div id="modal-help-guide" class="modal-overlay hidden">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <div>
+                    <h3><i class="fa-solid fa-circle-question"></i> Help, Keyboard Shortcuts &amp; Architecture</h3>
+                    <p class="subtext">Multi-tenant workspace operations guide</p>
+                </div>
+                <button class="btn-close-modal" onclick="closeModal('modal-help-guide')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px; max-height: 70vh; overflow-y: auto;">
+                <div class="help-section">
+                    <h4><i class="fa-solid fa-shield-halved text-primary"></i> Multi-Tenant Partition Isolation</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px;">
+                        NexSpace uses a shared MySQL database architecture partitioned with a strict discriminator column (<code>tenant_id</code>). All HTTP requests propagate the <code>X-Tenant-ID</code> header, which Spring Boot filters into a thread-bound <code>TenantContext</code> to ensure 100% data isolation between organizations.
+                    </p>
+                </div>
+
+                <div class="help-section" style="margin-top: 16px;">
+                    <h4><i class="fa-solid fa-keyboard text-info"></i> Keyboard Shortcuts</h4>
+                    <div class="shortcuts-grid">
+                        <div class="shortcut-item">
+                            <span class="key-combo"><kbd>Esc</kbd></span>
+                            <span>Close any active modal or mobile navigation drawer</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="key-combo"><kbd>/</kbd></span>
+                            <span>Focus the global search bar</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section" style="margin-top: 16px;">
+                    <h4><i class="fa-solid fa-user-shield text-warning"></i> Role Boundaries &amp; RBAC</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+                        • <strong>OWNER:</strong> Full authority, tenant settings &amp; deletion.<br>
+                        • <strong>ADMIN:</strong> Manage team members, projects &amp; tasks.<br>
+                        • <strong>BILLING_ADMIN:</strong> Isolated access to Stripe upgrades, invoices &amp; webhooks.<br>
+                        • <strong>MEMBER:</strong> Create and update tasks &amp; project items.<br>
+                        • <strong>VIEWER:</strong> Read-only access to cards and timelines.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="closeModal('modal-help-guide')">Got it</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- App JavaScript Modules -->
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
