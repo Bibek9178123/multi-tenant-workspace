@@ -59,6 +59,7 @@ public class SecurityConfig {
                                 "/favicon.ico",
                                 "/favicon.svg",
                                 "/api/auth/**",
+                                "/api/health",
                                 "/api/webhooks/**",
                                 "/api/education/**",
                                 "/api/mail/**"
