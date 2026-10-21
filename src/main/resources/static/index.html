@@ -195,7 +195,7 @@
                         <div class="user-name" id="current-user-name">User Name</div>
                         <div class="user-email" id="current-user-email">user@domain.com</div>
                     </div>
-                    <button class="btn-logout" title="Sign Out" onclick="handleLogout()">
+                    <button class="btn-logout" title="Sign Out" onclick="promptLogout()">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
                     </button>
                 </div>
@@ -1238,6 +1238,33 @@ APP_MAIL_FROM=verified-sender@domain.com</pre>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-primary" onclick="closeModal('modal-help-guide')">Got it</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Sign Out Modal -->
+    <div id="modal-logout-confirm" class="modal-overlay hidden">
+        <div class="modal-content modal-confirm">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-arrow-right-from-bracket" style="color: #ef4444;"></i> Confirm Sign Out</h3>
+                <button type="button" class="btn-close-modal" onclick="closeModal('modal-logout-confirm')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px 0; text-align: center;">
+                <div style="width: 54px; height: 54px; border-radius: 50%; background: rgba(239, 68, 68, 0.12); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; border: 1px solid rgba(239, 68, 68, 0.28);">
+                    <i class="fa-solid fa-arrow-right-from-bracket" style="font-size: 1.4rem; color: #ef4444;"></i>
+                </div>
+                <h4 style="margin: 0 0 8px; font-size: 1.15rem; color: #f8fafc;">Are you sure you want to log out?</h4>
+                <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem; line-height: 1.5;">
+                    Your active workspace session will be closed and you will need to sign in again.
+                </p>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 16px; border-top: 1px solid var(--border-subtle);">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-logout-confirm')">
+                    <i class="fa-solid fa-xmark"></i> No, Cancel
+                </button>
+                <button type="button" class="btn btn-danger" onclick="confirmLogout()">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> Yes, Log Out
+                </button>
             </div>
         </div>
     </div>

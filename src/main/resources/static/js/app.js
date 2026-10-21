@@ -1389,7 +1389,12 @@ async function handleRegister(e) {
     }
 }
 
-function handleLogout() {
+function promptLogout() {
+    openModal('modal-logout-confirm');
+}
+
+function confirmLogout() {
+    closeModal('modal-logout-confirm');
     API.setToken(null);
     API.setActiveTenantId(null);
     state.user = null;
@@ -1397,6 +1402,10 @@ function handleLogout() {
     state.activeWorkspace = null;
     showToast('Signed out successfully', 'info');
     showAuthModal();
+}
+
+function handleLogout() {
+    promptLogout();
 }
 
 function showAuthTab(tab) {
