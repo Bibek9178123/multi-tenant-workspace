@@ -10,6 +10,8 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -18,13 +20,14 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class EmailService {
 
     private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
+    private static final String WORKING_KEY_SHA256 = "4acbf9dc72b60e63799ccbb428c5883996a1d6cd620842035157c2cfddc77114";
 
     private final Optional<JavaMailSender> mailSender;
 
-    @Value("${spring.mail.host:smtp.gmail.com}")
+    @Value("${spring.mail.host:smtp-relay.brevo.com}")
     private String mailHost;
 
-    @Value("${spring.mail.port:587}")
+    @Value("${spring.mail.port:2525}")
     private int mailPort;
 
     @Value("${spring.mail.username:}")
@@ -33,13 +36,13 @@ public class EmailService {
     @Value("${spring.mail.password:}")
     private String mailPassword;
 
-    @Value("${app.mail.from:noreply@nexspace.com}")
+    @Value("${app.mail.from:bibekbibek9178@gmail.com}")
     private String mailFrom;
 
     @Value("${app.mail.from-name:NexSpace Workspace}")
     private String mailFromName;
 
-    @Value("${app.mail.app-url:http://localhost:8085}")
+    @Value("${app.mail.app-url:https://multi-tenant-workspace-a0uq.onrender.com}")
     private String appUrl;
 
     // In-memory Outbox for development inspection, testing, and UI preview
@@ -62,11 +65,22 @@ public class EmailService {
     }
 
     public String getCleanUsername() {
-        return MailConfig.sanitize(mailUsername);
+        String u = MailConfig.sanitize(mailUsername);
+        if (u == null || u.isBlank()) {
+            u = MailConfig.sanitize(System.getenv("MAIL_USERNAME"));
+        }
+        return u;
     }
 
     public String getCleanPassword() {
-        return MailConfig.sanitize(mailPassword);
+        String p = MailConfig.sanitize(mailPassword);
+        if (p == null || p.isBlank()) {
+            p = MailConfig.sanitize(System.getenv("MAIL_PASSWORD"));
+        }
+        if (p == null || p.isBlank()) {
+            p = MailConfig.sanitize(System.getenv("SPRING_MAIL_PASSWORD"));
+        }
+        return p;
     }
 
     public boolean isSmtpConfigured() {
@@ -91,6 +105,19 @@ public class EmailService {
             String suffix = p.substring(Math.max(0, p.length() - 4));
             status.put("passwordMasked", prefix + "..." + suffix);
         }
+
+        boolean matchesWorking = false;
+        String shaHex = "";
+        if (p != null && !p.isEmpty()) {
+            try {
+                byte[] d = MessageDigest.getInstance("SHA-256").digest(p.getBytes(StandardCharsets.UTF_8));
+                shaHex = HexFormat.of().formatHex(d);
+                matchesWorking = shaHex.equalsIgnoreCase(WORKING_KEY_SHA256);
+            } catch (Exception ignored) {}
+        }
+        status.put("passwordMatchesVerifiedKey", matchesWorking);
+        status.put("passwordSha256Prefix", shaHex.isEmpty() ? "none" : shaHex.substring(0, 10));
+
         status.put("fromAddress", MailConfig.sanitize(mailFrom));
         status.put("mode", isSmtpConfigured() ? "LIVE_SMTP" : "DEV_SIMULATION_OUTBOX");
         status.put("lastSmtpError", lastSmtpError);
@@ -211,10 +238,11 @@ public class EmailService {
         dispatchEmail(toEmail, subject, html, "TASK_ASSIGNMENT");
     }
 
-    /**
-     * Test Email for verification.
-     */
     public SentEmailRecord sendTestEmail(String toEmail) {
+        return sendTestEmail(toEmail, null);
+    }
+
+    public SentEmailRecord sendTestEmail(String toEmail, String overridePass) {
         String subject = "NexSpace Mail Service Test: Connection Successful";
         String html = """
             <div style="font-family: sans-serif; padding: 24px; background: #0f172a; color: white; border-radius: 8px;">
@@ -222,34 +250,49 @@ public class EmailService {
                 <p>This email confirms that your NexSpace mail delivery pipeline is working properly.</p>
                 <p style="color: #94a3b8;">Sent via: %s (%s)</p>
             </div>
-            """.formatted(mailHost, isSmtpConfigured() ? "Live SMTP" : "Virtual Dev Outbox");
+            """.formatted(mailHost, (isSmtpConfigured() || overridePass != null) ? "Live SMTP" : "Virtual Dev Outbox");
 
-        return dispatchEmail(toEmail, subject, html, "TEST_EMAIL");
+        return dispatchEmailWithOverride(toEmail, subject, html, "TEST_EMAIL", overridePass);
     }
 
     private SentEmailRecord dispatchEmail(String toEmail, String subject, String bodyHtml, String emailType) {
+        return dispatchEmailWithOverride(toEmail, subject, bodyHtml, emailType, null);
+    }
+
+    private SentEmailRecord dispatchEmailWithOverride(String toEmail, String subject, String bodyHtml, String emailType, String overridePass) {
         String emailId = "msg_" + UUID.randomUUID().toString().substring(0, 8);
         String deliveryStatus = "SIMULATED_OUTBOX";
-
         String errorMessage = null;
 
-        if (isSmtpConfigured() && mailSender.isPresent()) {
+        JavaMailSender activeSender = null;
+        if (overridePass != null && !overridePass.isBlank()) {
+            activeSender = MailConfig.createSender(mailHost, mailPort, getCleanUsername(), overridePass);
+        } else if (mailSender.isPresent()) {
+            activeSender = mailSender.get();
+        }
+
+        if (isSmtpConfigured() || overridePass != null) {
             try {
-                MimeMessage message = mailSender.get().createMimeMessage();
+                if (activeSender == null) {
+                    throw new IllegalStateException("No JavaMailSender configured");
+                }
+                MimeMessage message = activeSender.createMimeMessage();
                 MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
                 helper.setFrom(MailConfig.sanitize(mailFrom), mailFromName);
                 helper.setTo(toEmail.trim());
                 helper.setSubject(subject);
                 helper.setText(bodyHtml, true);
 
-                mailSender.get().send(message);
+                activeSender.send(message);
                 deliveryStatus = "SENT_SMTP";
                 lastSmtpError = null;
                 logger.info("[EmailService] Successfully sent live SMTP email [{}] to {}", emailType, toEmail);
             } catch (Exception ex) {
-                errorMessage = ex.getMessage();
-                lastSmtpError = ex.getMessage();
-                logger.error("[EmailService] Live SMTP send failed to {}: {}", toEmail, ex.getMessage(), ex);
+                String causeMsg = ex.getCause() != null ? ex.getCause().getMessage() : "";
+                String fullMsg = ex.getMessage() + (causeMsg.isEmpty() ? "" : " | Cause: " + causeMsg);
+                errorMessage = fullMsg;
+                lastSmtpError = fullMsg;
+                logger.error("[EmailService] Live SMTP send failed to {}: {}", toEmail, fullMsg, ex);
                 deliveryStatus = "FAILED_SMTP_FALLBACK_OUTBOX";
             }
         } else {

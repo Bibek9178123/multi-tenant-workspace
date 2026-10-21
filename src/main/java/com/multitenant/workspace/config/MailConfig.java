@@ -31,34 +31,56 @@ public class MailConfig {
     @Bean
     @Primary
     public JavaMailSender javaMailSender() {
+        return createSender(this.host, this.port, this.username, this.password);
+    }
+
+    public static JavaMailSenderImpl createSender(String host, int port, String username, String password) {
         JavaMailSenderImpl sender = new JavaMailSenderImpl();
 
         String cleanHost = sanitize(host);
         sender.setHost(cleanHost != null && !cleanHost.isBlank() ? cleanHost : "smtp-relay.brevo.com");
-        sender.setPort(port > 0 ? port : 2525);
+        int targetPort = port > 0 ? port : 2525;
+        sender.setPort(targetPort);
 
-        String cleanUsername = sanitize(username);
-        if (cleanUsername != null && !cleanUsername.isBlank()) {
-            sender.setUsername(cleanUsername);
+        String cleanUser = sanitize(username);
+        if (cleanUser == null || cleanUser.isBlank()) {
+            cleanUser = sanitize(System.getenv("MAIL_USERNAME"));
+        }
+        if (cleanUser != null && !cleanUser.isBlank()) {
+            sender.setUsername(cleanUser);
         }
 
-        String cleanPassword = sanitize(password);
-        if (cleanPassword != null && !cleanPassword.isBlank()) {
-            sender.setPassword(cleanPassword);
+        String cleanPass = sanitize(password);
+        if (cleanPass == null || cleanPass.isBlank()) {
+            cleanPass = sanitize(System.getenv("MAIL_PASSWORD"));
+        }
+        if (cleanPass == null || cleanPass.isBlank()) {
+            cleanPass = sanitize(System.getenv("SPRING_MAIL_PASSWORD"));
+        }
+        if (cleanPass != null && !cleanPass.isBlank()) {
+            sender.setPassword(cleanPass);
         }
 
         Properties props = sender.getJavaMailProperties();
         props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.starttls.enable", "true");
-        props.put("mail.smtp.starttls.required", "true");
+        props.put("mail.smtp.auth.mechanisms", "LOGIN PLAIN");
         props.put("mail.smtp.ssl.trust", "*");
         props.put("mail.smtp.connectiontimeout", "10000");
         props.put("mail.smtp.timeout", "10000");
         props.put("mail.smtp.writetimeout", "10000");
 
-        logger.info("[MailConfig] Configured custom JavaMailSender: host={}, port={}, user={}, passLength={}",
+        if (targetPort == 465) {
+            props.put("mail.smtp.ssl.enable", "true");
+            props.put("mail.smtp.socketFactory.port", "465");
+            props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+        } else {
+            props.put("mail.smtp.starttls.enable", "true");
+            props.put("mail.smtp.starttls.required", "true");
+        }
+
+        logger.info("[MailConfig] Initialized JavaMailSender: host={}, port={}, user={}, passLen={}",
                 sender.getHost(), sender.getPort(), sender.getUsername(),
-                cleanPassword != null ? cleanPassword.length() : 0);
+                cleanPass != null ? cleanPass.length() : 0);
 
         return sender;
     }
@@ -66,13 +88,11 @@ public class MailConfig {
     public static String sanitize(String input) {
         if (input == null) return null;
         String val = input.trim();
-        // Remove enclosing double or single quotes
         if ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("'") && val.endsWith("'"))) {
             if (val.length() >= 2) {
                 val = val.substring(1, val.length() - 1).trim();
             }
         }
-        // Remove trailing or leading whitespace, carriage returns, newlines, tabs
         val = val.replaceAll("[\\r\\n\\t]", "").trim();
         return val;
     }
