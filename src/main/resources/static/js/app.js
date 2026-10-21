@@ -1139,6 +1139,7 @@ async function handleSaveWorkspaceSettings(e) {
     const name = document.getElementById('setting-ws-name').value.trim();
     const desc = document.getElementById('setting-ws-desc').value.trim();
     const plan = document.getElementById('setting-ws-plan').value;
+    const oldPlan = state.activeWorkspace?.plan;
 
     try {
         const updated = await API.updateWorkspace(state.activeWorkspace.id, {
@@ -1146,13 +1147,24 @@ async function handleSaveWorkspaceSettings(e) {
             description: desc,
             plan
         });
-        showToast('Workspace settings saved', 'success');
+        if (oldPlan && oldPlan !== plan) {
+            showToast(`Workspace plan changed to ${plan}! Confirmation email dispatched.`, 'success');
+        } else {
+            showToast('Workspace settings saved', 'success');
+        }
         state.activeWorkspace = updated;
         updateWorkspaceUI(updated);
 
         // Update in list
         state.workspaces = await API.getWorkspaces();
         renderWorkspaceList();
+
+        // Refresh email outbox cache & sidebar badge
+        API.getMailOutbox().then(emails => {
+            state.outboxCache = emails || [];
+            const navEmail = document.getElementById('nav-email-count');
+            if (navEmail) navEmail.textContent = state.outboxCache.length;
+        }).catch(() => {});
     } catch (error) {
         showToast(error.message, 'error');
     }

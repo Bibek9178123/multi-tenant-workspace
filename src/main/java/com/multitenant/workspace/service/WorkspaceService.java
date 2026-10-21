@@ -25,19 +25,25 @@ public class WorkspaceService {
     private final TaskRepository taskRepository;
     private final ActivityLogRepository activityLogRepository;
     private final ActivityLogService activityLogService;
+    private final UserRepository userRepository;
+    private final EmailService emailService;
 
     public WorkspaceService(WorkspaceRepository workspaceRepository,
                             WorkspaceMemberRepository workspaceMemberRepository,
                             ProjectRepository projectRepository,
                             TaskRepository taskRepository,
                             ActivityLogRepository activityLogRepository,
-                            ActivityLogService activityLogService) {
+                            ActivityLogService activityLogService,
+                            UserRepository userRepository,
+                            EmailService emailService) {
         this.workspaceRepository = workspaceRepository;
         this.workspaceMemberRepository = workspaceMemberRepository;
         this.projectRepository = projectRepository;
         this.taskRepository = taskRepository;
         this.activityLogRepository = activityLogRepository;
         this.activityLogService = activityLogService;
+        this.userRepository = userRepository;
+        this.emailService = emailService;
     }
 
     @Transactional(readOnly = true)
@@ -191,16 +197,40 @@ public class WorkspaceService {
             throw new SecurityException("Only workspace OWNER or ADMIN can modify settings");
         }
 
+        Workspace.PlanType oldPlan = ws.getPlan();
         ws.setName(request.name());
         if (request.description() != null) {
             ws.setDescription(request.description());
         }
+
+        boolean planChanged = false;
+        Workspace.PlanType targetPlan = null;
         if (request.plan() != null && member.getRole() == WorkspaceMember.MemberRole.OWNER) {
-            ws.setPlan(request.plan());
+            if (oldPlan != request.plan()) {
+                planChanged = true;
+                targetPlan = request.plan();
+                ws.setPlan(request.plan());
+            }
         }
         workspaceRepository.save(ws);
 
         activityLogService.log("WORKSPACE_UPDATED", "Workspace settings updated by " + userName, userId, userName);
+
+        if (planChanged && targetPlan != null) {
+            final Workspace.PlanType finalPlan = targetPlan;
+            userRepository.findById(ws.getOwnerId()).ifPresent(owner -> {
+                String subject;
+                String alertBody;
+                if (finalPlan == Workspace.PlanType.FREE) {
+                    subject = "Workspace Plan Changed: FREE Tier";
+                    alertBody = "Your workspace <strong>" + ws.getName() + "</strong> plan has been updated to the <strong>FREE</strong> tier.";
+                } else {
+                    subject = "Subscription Upgraded: " + finalPlan.name() + " Plan";
+                    alertBody = "Great news! Your workspace <strong>" + ws.getName() + "</strong> subscription has been updated to the <strong>" + finalPlan.name() + "</strong> tier. Enjoy enhanced multi-tenant collaboration, higher task capacity, and advanced features.";
+                }
+                emailService.sendBillingAlertEmail(owner.getEmail(), ws.getName(), subject, alertBody, ws.getId());
+            });
+        }
 
         long count = workspaceMemberRepository.findByWorkspaceId(workspaceId).size();
         return new WorkspaceDtos.WorkspaceResponse(
