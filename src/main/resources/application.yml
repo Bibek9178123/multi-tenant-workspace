@@ -19,7 +19,7 @@ spring:
         format_sql: true
   mail:
     host: ${MAIL_HOST:smtp-relay.brevo.com}
-    port: ${MAIL_PORT:587}
+    port: ${MAIL_PORT:2525}
     username: ${MAIL_USERNAME:bea57d001@smtp-brevo.com}
     password: ${MAIL_PASSWORD:}
     properties:
@@ -29,6 +29,8 @@ spring:
           starttls:
             enable: true
             required: true
+          ssl:
+            trust: "*"
           connectiontimeout: 10000
           timeout: 10000
           writetimeout: 10000
