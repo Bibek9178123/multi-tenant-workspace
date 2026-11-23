@@ -1,5 +1,6 @@
 package com.multitenant.workspace.controller;
 
+import com.multitenant.workspace.entity.InvoiceRecord;
 import com.multitenant.workspace.entity.Workspace;
 import com.multitenant.workspace.repository.WorkspaceRepository;
 import com.multitenant.workspace.security.Permission;
@@ -11,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -85,7 +88,7 @@ public class StripeWebhookController {
     }
 
     /**
-     * Fetch billing and subscription details for active workspace.
+     * Fetch billing and subscription details for active workspace, including invoice history.
      */
     @GetMapping("/billing/info")
     public ResponseEntity<Map<String, Object>> getBillingInfo(
@@ -99,18 +102,32 @@ public class StripeWebhookController {
                 .orElseThrow(() -> new IllegalArgumentException("Workspace not found: " + tenantId));
 
         boolean canManageBilling = rbacService.hasPermission(userPrincipal.getId(), tenantId, Permission.MANAGE_BILLING);
+        List<InvoiceRecord> invoices = stripeBillingService.getInvoices(tenantId);
 
-        Map<String, Object> info = Map.of(
-                "workspaceId", ws.getId(),
-                "companyName", ws.getName(),
-                "plan", ws.getPlan().name(),
-                "subscriptionStatus", ws.getSubscriptionStatus() != null ? ws.getSubscriptionStatus() : "ACTIVE",
-                "stripeCustomerId", ws.getStripeCustomerId() != null ? ws.getStripeCustomerId() : "none",
-                "stripeSubscriptionId", ws.getStripeSubscriptionId() != null ? ws.getStripeSubscriptionId() : "none",
-                "currentPeriodEnd", ws.getCurrentPeriodEnd() != null ? ws.getCurrentPeriodEnd().toString() : "N/A",
-                "canManageBilling", canManageBilling
-        );
+        Map<String, Object> info = new LinkedHashMap<>();
+        info.put("workspaceId", ws.getId());
+        info.put("companyName", ws.getName());
+        info.put("plan", ws.getPlan().name());
+        info.put("subscriptionStatus", ws.getSubscriptionStatus() != null ? ws.getSubscriptionStatus() : "ACTIVE");
+        info.put("stripeCustomerId", ws.getStripeCustomerId() != null ? ws.getStripeCustomerId() : "none");
+        info.put("stripeSubscriptionId", ws.getStripeSubscriptionId() != null ? ws.getStripeSubscriptionId() : "none");
+        info.put("currentPeriodEnd", ws.getCurrentPeriodEnd() != null ? ws.getCurrentPeriodEnd().toString() : "N/A");
+        info.put("canManageBilling", canManageBilling);
+        info.put("invoices", invoices);
 
         return ResponseEntity.ok(info);
+    }
+
+    /**
+     * Fetch all invoices for active workspace.
+     */
+    @GetMapping("/billing/invoices")
+    public ResponseEntity<List<InvoiceRecord>> getInvoices(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        String tenantId = TenantContext.getCurrentTenant();
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new IllegalStateException("Active tenant context is required");
+        }
+        return ResponseEntity.ok(stripeBillingService.getInvoices(tenantId));
     }
 }

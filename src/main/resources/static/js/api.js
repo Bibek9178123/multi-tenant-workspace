@@ -233,6 +233,10 @@ const API = {
         return this.request('/billing/info');
     },
 
+    getInvoices() {
+        return this.request('/billing/invoices');
+    },
+
     createCheckout(plan) {
         return this.request('/billing/checkout', {
             method: 'POST',

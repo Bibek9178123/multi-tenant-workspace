@@ -1626,9 +1626,140 @@ async function renderBilling() {
                 }
             }
         });
+
+        // Render Dynamic Billing History & Invoices Table
+        const tbody = document.getElementById('invoices-table-body');
+        if (tbody) {
+            const invoices = (info && Array.isArray(info.invoices)) ? info.invoices : (await API.getInvoices().catch(() => []));
+            if (!invoices || invoices.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center empty-state-cell" style="padding: 28px 16px; color: var(--text-muted);">
+                            <i class="fa-solid fa-receipt" style="font-size: 1.6rem; opacity: 0.4; margin-bottom: 8px; display: block;"></i>
+                            No paid invoices recorded yet for this workspace. Upgrades to Pro or Enterprise generate permanent financial receipts.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = invoices.map(inv => {
+                    const isPaid = inv.paymentStatus === 'PAID';
+                    const statusBadge = isPaid
+                        ? '<span class="status-badge active"><i class="fa-solid fa-circle-check"></i> Paid via Stripe</span>'
+                        : '<span class="status-badge review"><i class="fa-solid fa-triangle-exclamation"></i> ' + escapeHtml(inv.paymentStatus || 'PENDING') + '</span>';
+                    const amountFormatted = `$${Number(inv.amountUsd || 0).toFixed(2)} ${escapeHtml(inv.currency || 'USD')}`;
+                    const dateFormatted = formatDate(inv.createdAt);
+                    const invNum = escapeHtml(inv.invoiceNumber || 'INV-2026-00001');
+                    const planName = escapeHtml(inv.plan || info.plan || 'PRO');
+
+                    return `
+                        <tr>
+                            <td><code>${invNum}</code></td>
+                            <td>${dateFormatted}</td>
+                            <td><strong>${amountFormatted}</strong></td>
+                            <td>${statusBadge}</td>
+                            <td>
+                                <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.75rem;" onclick="downloadReceiptPdf('${invNum}', '${amountFormatted}', '${dateFormatted}', '${planName}')">
+                                    <i class="fa-solid fa-download"></i> PDF
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
     } catch (error) {
         console.error('Failed to load billing info:', error);
         showToast(error.message, 'error');
+    }
+}
+
+function downloadReceiptPdf(invoiceNumber, amount, date, plan) {
+    const wsName = state.activeWorkspace?.name || 'NexSpace Workspace';
+    const userName = state.user?.fullName || 'Valued Customer';
+    const userEmail = state.user?.email || '';
+
+    const receiptHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Receipt - ${invoiceNumber}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #1e293b; background: #f8fafc; }
+        .receipt-card { max-width: 650px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 36px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; }
+        .brand { font-size: 24px; font-weight: 800; color: #6366f1; }
+        .badge { background: #ecfdf5; color: #059669; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 13px; }
+        .details { margin: 24px 0; }
+        .meta-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; }
+        .meta-label { color: #64748b; font-weight: 500; }
+        .meta-val { font-weight: 600; color: #0f172a; }
+        .items-table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+        .items-table th { background: #f8fafc; padding: 12px; text-align: left; font-size: 13px; border-bottom: 1px solid #e2e8f0; color: #475569; }
+        .items-table td { padding: 16px 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+        .total-row { display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; margin-top: 24px; padding-top: 16px; border-top: 2px solid #0f172a; }
+        .footer { margin-top: 32px; text-align: center; font-size: 12px; color: #94a3b8; }
+        @media print {
+            body { padding: 0; background: #fff; }
+            .receipt-card { border: none; box-shadow: none; padding: 0; }
+            .btn-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt-card">
+        <div class="header">
+            <div>
+                <div class="brand">NexSpace</div>
+                <div style="font-size: 13px; color: #64748b; margin-top: 4px;">Multi-Tenant SaaS Workspace & Collaboration</div>
+            </div>
+            <div class="badge">✓ PAID VIA STRIPE</div>
+        </div>
+        <div class="details">
+            <div class="meta-row"><span class="meta-label">Invoice Number:</span><span class="meta-val">${invoiceNumber}</span></div>
+            <div class="meta-row"><span class="meta-label">Billing Date:</span><span class="meta-val">${date}</span></div>
+            <div class="meta-row"><span class="meta-label">Billed To:</span><span class="meta-val">${escapeHtml(userName)} (${escapeHtml(userEmail)})</span></div>
+            <div class="meta-row"><span class="meta-label">Workspace:</span><span class="meta-val">${escapeHtml(wsName)}</span></div>
+            <div class="meta-row"><span class="meta-label">Payment Method:</span><span class="meta-val">Credit / Debit Card (Stripe Gateway)</span></div>
+        </div>
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Plan Tier</th>
+                    <th>Cycle</th>
+                    <th style="text-align: right;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>NexSpace ${plan} Subscription</strong><br><small style="color: #64748b;">Isolated workspace partition, team RBAC, Kanban, & transactional alerts</small></td>
+                    <td>${plan}</td>
+                    <td>1 Month</td>
+                    <td style="text-align: right; font-weight: 600;">${amount}</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="total-row">
+            <span>Total Paid:</span>
+            <span>${amount}</span>
+        </div>
+        <div class="footer">
+            <p>Thank you for your business. For billing queries, email billing@nexspace.com.</p>
+            <button class="btn-print" onclick="window.print()" style="margin-top: 12px; padding: 9px 20px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px;">Print / Save as PDF</button>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+        printWindow.document.write(receiptHtml);
+        printWindow.document.close();
+        printWindow.focus();
+    } else {
+        showToast(`Invoice ${invoiceNumber} receipt ready`, 'success');
     }
 }
 

@@ -1,6 +1,7 @@
 package com.multitenant.workspace.service;
 
 import com.multitenant.workspace.dto.WorkspaceDtos;
+import com.multitenant.workspace.entity.InvoiceRecord;
 import com.multitenant.workspace.entity.Project;
 import com.multitenant.workspace.entity.Task;
 import com.multitenant.workspace.entity.Workspace;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -27,6 +29,7 @@ public class WorkspaceService {
     private final ActivityLogService activityLogService;
     private final UserRepository userRepository;
     private final EmailService emailService;
+    private final InvoiceRecordRepository invoiceRecordRepository;
 
     public WorkspaceService(WorkspaceRepository workspaceRepository,
                             WorkspaceMemberRepository workspaceMemberRepository,
@@ -35,7 +38,8 @@ public class WorkspaceService {
                             ActivityLogRepository activityLogRepository,
                             ActivityLogService activityLogService,
                             UserRepository userRepository,
-                            EmailService emailService) {
+                            EmailService emailService,
+                            InvoiceRecordRepository invoiceRecordRepository) {
         this.workspaceRepository = workspaceRepository;
         this.workspaceMemberRepository = workspaceMemberRepository;
         this.projectRepository = projectRepository;
@@ -44,6 +48,7 @@ public class WorkspaceService {
         this.activityLogService = activityLogService;
         this.userRepository = userRepository;
         this.emailService = emailService;
+        this.invoiceRecordRepository = invoiceRecordRepository;
     }
 
     @Transactional(readOnly = true)
@@ -218,6 +223,22 @@ public class WorkspaceService {
 
         if (planChanged && targetPlan != null) {
             final Workspace.PlanType finalPlan = targetPlan;
+            if (finalPlan != Workspace.PlanType.FREE) {
+                long amount = finalPlan == Workspace.PlanType.ENTERPRISE ? 99L : 29L;
+                long seq = invoiceRecordRepository.countByWorkspaceId(workspaceId) + 1;
+                String invoiceNumber = String.format("INV-%d-%05d", LocalDateTime.now().getYear(), seq);
+                InvoiceRecord invoice = new InvoiceRecord(
+                        workspaceId,
+                        invoiceNumber,
+                        "settings_change_" + UUID.randomUUID().toString().substring(0, 8),
+                        amount,
+                        finalPlan.name(),
+                        "PAID",
+                        "SETTINGS_CHANGE"
+                );
+                invoiceRecordRepository.save(invoice);
+            }
+
             userRepository.findById(ws.getOwnerId()).ifPresent(owner -> {
                 String subject;
                 String alertBody;

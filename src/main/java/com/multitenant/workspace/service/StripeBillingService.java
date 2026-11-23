@@ -2,7 +2,9 @@ package com.multitenant.workspace.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.multitenant.workspace.entity.InvoiceRecord;
 import com.multitenant.workspace.entity.Workspace;
+import com.multitenant.workspace.repository.InvoiceRecordRepository;
 import com.multitenant.workspace.repository.UserRepository;
 import com.multitenant.workspace.repository.WorkspaceRepository;
 import com.multitenant.workspace.security.Permission;
@@ -19,7 +21,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -33,6 +37,7 @@ public class StripeBillingService {
     private final ActivityLogService activityLogService;
     private final RbacService rbacService;
     private final EmailService emailService;
+    private final InvoiceRecordRepository invoiceRecordRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${app.stripe.api-key:sk_test_mock_demo_key}")
@@ -45,12 +50,23 @@ public class StripeBillingService {
                                 UserRepository userRepository,
                                 ActivityLogService activityLogService,
                                 RbacService rbacService,
-                                EmailService emailService) {
+                                EmailService emailService,
+                                InvoiceRecordRepository invoiceRecordRepository) {
         this.workspaceRepository = workspaceRepository;
         this.userRepository = userRepository;
         this.activityLogService = activityLogService;
         this.rbacService = rbacService;
         this.emailService = emailService;
+        this.invoiceRecordRepository = invoiceRecordRepository;
+    }
+
+    /**
+     * Generates a sequential invoice number for a workspace, e.g. INV-2026-00003.
+     */
+    private String generateInvoiceNumber(String workspaceId) {
+        long seq = invoiceRecordRepository.countByWorkspaceId(workspaceId) + 1;
+        int year = LocalDateTime.now().getYear();
+        return String.format("INV-%d-%05d", year, seq);
     }
 
     /**
@@ -183,6 +199,18 @@ public class StripeBillingService {
                     ws.setCurrentPeriodEnd(LocalDateTime.now().plusDays(30));
                     workspaceRepository.save(ws);
 
+                    // Persist invoice record
+                    long amountUsd = plan == Workspace.PlanType.ENTERPRISE ? 99L : (plan == Workspace.PlanType.PRO ? 29L : 0L);
+                    if (amountUsd > 0) {
+                        String invoiceNumber = generateInvoiceNumber(workspaceId);
+                        String stripeInvoiceId = dataObject.path("id").asText("cs_" + UUID.randomUUID().toString().substring(0, 10));
+                        InvoiceRecord invoice = new InvoiceRecord(
+                                workspaceId, invoiceNumber, stripeInvoiceId,
+                                amountUsd, plan.name(), "PAID", "CHECKOUT_COMPLETED");
+                        invoiceRecordRepository.save(invoice);
+                        outcome.put("invoiceNumber", invoiceNumber);
+                    }
+
                     activityLogService.log("STRIPE_WEBHOOK_PROCESSED",
                             "Stripe Webhook checkout.session.completed: Company upgraded to " + plan + " plan.",
                             ws.getOwnerId(), "Stripe Webhook");
@@ -253,6 +281,17 @@ public class StripeBillingService {
                         .filter(w -> customerId != null && customerId.equals(w.getStripeCustomerId()))
                         .findFirst()
                         .ifPresent(ws -> {
+                            // Persist invoice record
+                            if (amountPaid > 0) {
+                                String invoiceNumber = generateInvoiceNumber(ws.getId());
+                                String stripeInvoiceId = dataObject.path("id").asText("in_" + UUID.randomUUID().toString().substring(0, 10));
+                                InvoiceRecord invoice = new InvoiceRecord(
+                                        ws.getId(), invoiceNumber, stripeInvoiceId,
+                                        amountPaid, ws.getPlan().name(), "PAID", "INVOICE_PAYMENT_SUCCEEDED");
+                                invoiceRecordRepository.save(invoice);
+                                outcome.put("invoiceNumber", invoiceNumber);
+                            }
+
                             activityLogService.log("PAYMENT_SUCCEEDED",
                                     "Stripe Webhook invoice.payment_succeeded: Payment of $" + amountPaid + " received.",
                                     ws.getOwnerId(), "Stripe Webhook");
@@ -297,6 +336,35 @@ public class StripeBillingService {
         }
 
         return outcome;
+    }
+
+    /**
+     * Retrieves all billing invoices for a workspace, ordered by newest first.
+     * If workspace is currently on a paid tier but has no recorded invoices (e.g. existing workspace),
+     * an initial invoice record is created so the billing history accurately reflects the plan.
+     */
+    @Transactional
+    public List<InvoiceRecord> getInvoices(String workspaceId) {
+        List<InvoiceRecord> list = invoiceRecordRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId);
+        if (list.isEmpty()) {
+            Workspace ws = workspaceRepository.findById(workspaceId).orElse(null);
+            if (ws != null && ws.getPlan() != Workspace.PlanType.FREE) {
+                long amount = ws.getPlan() == Workspace.PlanType.ENTERPRISE ? 99L : 29L;
+                InvoiceRecord initial = new InvoiceRecord(
+                        workspaceId,
+                        generateInvoiceNumber(workspaceId),
+                        "cs_initial_" + UUID.randomUUID().toString().substring(0, 8),
+                        amount,
+                        ws.getPlan().name(),
+                        "PAID",
+                        "INITIAL_UPGRADE"
+                );
+                initial.setCreatedAt(ws.getCreatedAt() != null ? ws.getCreatedAt() : LocalDateTime.now());
+                invoiceRecordRepository.save(initial);
+                return invoiceRecordRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId);
+            }
+        }
+        return list;
     }
 
     /**
