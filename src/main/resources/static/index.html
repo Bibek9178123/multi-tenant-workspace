@@ -601,28 +601,33 @@
                     </div>
 
                     <!-- Invoices and Payment History Card -->
-                    <div class="card mt-4">
+                    <div class="card mt-4 billing-invoices-card">
                         <div class="card-header">
-                            <h3><i class="fa-solid fa-receipt"></i> Company Billing History &amp; Receipts</h3>
+                            <div>
+                                <h3><i class="fa-solid fa-receipt"></i> Company Billing History &amp; Receipts</h3>
+                                <p class="subtext">Official tax invoices and downloadable PDF receipts for subscription payments</p>
+                            </div>
                         </div>
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Invoice #</th>
-                                    <th>Billing Date</th>
-                                    <th>Amount</th>
-                                    <th>Payment Status</th>
-                                    <th>Receipt</th>
-                                </tr>
-                            </thead>
-                            <tbody id="invoices-table-body">
-                                <tr>
-                                    <td colspan="5" class="text-center" style="padding: 24px; color: var(--text-muted);">
-                                        <i class="fa-solid fa-spinner fa-spin"></i> Loading billing history &amp; receipts...
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <div class="table-responsive invoices-table-container">
+                            <table class="data-table invoices-table">
+                                <thead>
+                                    <tr>
+                                        <th>Invoice #</th>
+                                        <th>Billing Date</th>
+                                        <th>Amount</th>
+                                        <th>Payment Status</th>
+                                        <th class="text-right">Receipt</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="invoices-table-body">
+                                    <tr>
+                                        <td colspan="5" class="text-center empty-state-cell" style="padding: 24px; color: var(--text-muted);">
+                                            <i class="fa-solid fa-spinner fa-spin"></i> Loading billing history &amp; receipts...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </section>

@@ -1653,12 +1653,12 @@ async function renderBilling() {
 
                     return `
                         <tr>
-                            <td><code>${invNum}</code></td>
-                            <td>${dateFormatted}</td>
-                            <td><strong>${amountFormatted}</strong></td>
-                            <td>${statusBadge}</td>
-                            <td>
-                                <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.75rem;" onclick="downloadReceiptPdf('${invNum}', '${amountFormatted}', '${dateFormatted}', '${planName}')">
+                            <td data-label="Invoice #"><code>${invNum}</code></td>
+                            <td data-label="Billing Date">${dateFormatted}</td>
+                            <td data-label="Amount"><strong>${amountFormatted}</strong></td>
+                            <td data-label="Payment Status">${statusBadge}</td>
+                            <td data-label="Receipt" class="receipt-action-cell text-right">
+                                <button class="btn btn-secondary btn-receipt-download" onclick="downloadReceiptPdf('${invNum}', '${amountFormatted}', '${dateFormatted}', '${planName}')">
                                     <i class="fa-solid fa-download"></i> PDF
                                 </button>
                             </td>

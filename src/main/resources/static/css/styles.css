@@ -1883,6 +1883,99 @@ input:disabled {
 }
 
 /* -------------------------------------------------------------
+   Company Billing Invoices & Receipts Styles
+   ------------------------------------------------------------- */
+.billing-invoices-card {
+    padding: 0;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+}
+
+.billing-invoices-card .card-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.billing-invoices-card .card-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.billing-invoices-card .subtext {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.invoices-table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.invoices-table {
+    width: 100%;
+    min-width: 580px;
+    border-collapse: collapse;
+}
+
+.invoices-table th {
+    background: var(--bg-base);
+    padding: 14px 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.invoices-table td {
+    padding: 16px 20px;
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--border-subtle);
+    vertical-align: middle;
+}
+
+.invoices-table td code {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: #93c5fd;
+    background: rgba(147, 197, 253, 0.08);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(147, 197, 253, 0.2);
+}
+
+.invoices-table .receipt-action-cell {
+    text-align: right;
+}
+
+.invoices-table .btn-receipt-download {
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.invoices-table .btn-receipt-download:hover {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+}
+
+/* -------------------------------------------------------------
    Architecture Learning Lab Styles
    ------------------------------------------------------------- */
 .lab-container {
@@ -3258,6 +3351,103 @@ input:disabled {
         min-width: 760px;
     }
 
+    /* Billing Invoices Card & Mobile List Transformation */
+    .billing-invoices-card {
+        border-radius: var(--radius-md);
+    }
+
+    .billing-invoices-card .card-header {
+        padding: 16px 18px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .invoices-table-container {
+        padding: 12px 14px 16px 14px;
+        overflow-x: visible;
+    }
+
+    .invoices-table {
+        min-width: 100% !important;
+        width: 100% !important;
+        display: block;
+    }
+
+    .invoices-table thead {
+        display: none;
+    }
+
+    .invoices-table tbody {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+    }
+
+    .invoices-table tr {
+        display: flex;
+        flex-direction: column;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border-strong, #334155);
+        border-radius: var(--radius-md);
+        padding: 14px 16px;
+        gap: 8px;
+        transition: border-color 0.2s, background 0.2s;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .invoices-table tr:hover {
+        border-color: var(--primary);
+        background: rgba(99, 102, 241, 0.04);
+    }
+
+    .invoices-table tr td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 7px 0;
+        border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+        font-size: 0.85rem;
+    }
+
+    .invoices-table tr td::before {
+        content: attr(data-label);
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .invoices-table tr td.receipt-action-cell {
+        border-bottom: none;
+        padding-top: 10px;
+        justify-content: stretch;
+    }
+
+    .invoices-table tr td.receipt-action-cell::before {
+        display: none;
+    }
+
+    .invoices-table tr td.receipt-action-cell .btn {
+        width: 100%;
+        justify-content: center;
+        padding: 9px 16px;
+        font-size: 0.85rem;
+    }
+
+    .invoices-table tr td.empty-state-cell {
+        display: block;
+        text-align: center;
+        padding: 24px 12px;
+        border: none;
+    }
+
+    .invoices-table tr td.empty-state-cell::before {
+        display: none;
+    }
+
     .email-table-card {
         padding: 16px 0 0 0;
     }
@@ -3387,6 +3577,24 @@ input:disabled {
     .toast {
         min-width: calc(100vw - 32px);
         max-width: calc(100vw - 32px);
+    }
+
+    .billing-invoices-card .card-header {
+        padding: 14px 14px 10px 14px;
+    }
+
+    .invoices-table-container {
+        padding: 8px 10px 14px 10px;
+    }
+
+    .invoices-table tr {
+        padding: 12px;
+        gap: 6px;
+    }
+
+    .invoices-table tr td {
+        padding: 5px 0;
+        font-size: 0.82rem;
     }
 }
 
